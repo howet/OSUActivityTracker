@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="hello">Hello World, ActivityGpsTrackerActivity!</string>
+    <string name="hello">OSU Activity Tracker Debug App</string>
     <string name="app_name">ActivityGpsTracker</string>
+    <string name="HelloX">Patient ID</string>
 </resources>

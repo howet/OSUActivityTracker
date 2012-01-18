@@ -4,12 +4,27 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     >
-<TextView  
-    android:layout_width="fill_parent" 
-    android:layout_height="wrap_content" 
-    android:text="@string/hello"
-    />
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/hello" />
 <Button android:layout_width="wrap_content" android:id="@+id/button1" android:layout_height="wrap_content" android:text="Start Service" android:onClick="onClickStartService"></Button>
 <Button android:layout_width="wrap_content" android:text="Get Data" android:id="@+id/button2" android:layout_height="wrap_content" android:onClick="onClickGetData"></Button>
 <Button android:layout_width="wrap_content" android:text="Stop Service" android:id="@+id/button3" android:layout_height="wrap_content" android:onClick="onClickStopService"></Button>
+
+<TextView
+    android:id="@+id/xLabel"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:text="@string/HelloX" />
+
+<EditText
+    android:id="@+id/patientId"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:inputType="number"
+    android:singleLine="true" >
+</EditText>
+
 </LinearLayout>

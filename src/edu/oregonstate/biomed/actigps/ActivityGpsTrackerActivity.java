@@ -3,26 +3,106 @@ package edu.oregonstate.biomed.actigps;
 import java.util.LinkedList;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class ActivityGpsTrackerActivity extends Activity {
     /** Called when the activity is first created. */
+	private DataUpdateReceiver dataUpdateReceiver;
+
+	
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         
+        final EditText patientIdEdit = (EditText)findViewById(R.id.patientId);
+        
+        patientIdEdit.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+			
+			@Override
+			public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+				if (actionId == EditorInfo.IME_ACTION_DONE) {
+					SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
+					SharedPreferences.Editor editor = settings.edit();
+					
+					Toast.makeText(ActivityGpsTrackerActivity.this, "DONE",
+							Toast.LENGTH_SHORT).show();
+					
+					int patientId = getPatientIdContent();
+					
+					serv.setPatientId(patientId);
+					editor.putInt("lastPatientId", patientId);
+					editor.commit();
+					
+					if (serv != null) {
+						serv.setPatientId(patientId);
+					}
+				}
+				
+				return false;
+			}
+		});
+        
+        SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
+        
+        int nextPatientId = settings.getInt("lastPatientId", 1008) + 1;
+        patientIdEdit.setText(""+nextPatientId);
+        
         doBindService();
         
+    }
+    
+    @Override
+    public void onResume() {
+    	super.onRestart();
+    	
+    	if (dataUpdateReceiver == null) dataUpdateReceiver = new DataUpdateReceiver();
+    	IntentFilter intentFilter = new IntentFilter("PHONE_LOCATION_UPDATE");
+    	registerReceiver(dataUpdateReceiver, intentFilter);
+    	
+    	Toast.makeText(ActivityGpsTrackerActivity.this, "Resumed",
+				Toast.LENGTH_SHORT).show();
+    }
+    
+    public void onPause() {
+    	super.onPause();
+    	try {
+    		if (dataUpdateReceiver != null) unregisterReceiver(dataUpdateReceiver);
+    	}
+    	catch (IllegalArgumentException ex) {
+    		// catch if the receiver is not registered
+    	}
+    }
+    
+    public void onDestroy() {
+    	super.onDestroy();
+    	try {
+    		if (dataUpdateReceiver != null) unregisterReceiver(dataUpdateReceiver);
+    	}
+    	catch (IllegalArgumentException ex) {
+    		// catch if the receiver is not registered
+    	}
+    }
+    
+    private int getPatientIdContent() {
+        final EditText patientIdEdit = (EditText)findViewById(R.id.patientId);
+        return Integer.parseInt(patientIdEdit.getText().toString());
     }
     
     
@@ -37,6 +117,8 @@ public class ActivityGpsTrackerActivity extends Activity {
 			serv = ((ServiceGpsTracker.TrackerBinder) binder).getTracker();
 			Toast.makeText(ActivityGpsTrackerActivity.this, "Connected to service",
 					Toast.LENGTH_SHORT).show();
+			
+			serv.setPatientId(getPatientIdContent());
 		}
 
 		public void onServiceDisconnected(ComponentName className) {
@@ -54,6 +136,13 @@ public class ActivityGpsTrackerActivity extends Activity {
 	}
 	
 	public void onClickStopService(View v) {
+		try {
+    		if (dataUpdateReceiver != null) unregisterReceiver(dataUpdateReceiver);
+    	}
+    	catch (IllegalArgumentException ex) {
+    		// catch if the receiver is not registered
+    	}
+		
 		stopService(new Intent(this, ServiceGpsTracker.class));
 	}
 	
@@ -64,6 +153,20 @@ public class ActivityGpsTrackerActivity extends Activity {
 			Toast.makeText(ActivityGpsTrackerActivity.this, "Got start time of: " + t,
 					Toast.LENGTH_SHORT).show();*/
 		}
+	}
+	
+	private class DataUpdateReceiver extends BroadcastReceiver {
+		@Override
+		public void onReceive(Context ctx, Intent intent) {
+			if (intent.getAction().equals("PHONE_LOCATION_UPDATE")) {
+				Bundle data = intent.getExtras();
+				String s = data.getString("x")+","+data.getString("y")+","+data.getString("z");
+				TextView txt = (TextView) findViewById(R.id.xLabel);
+				txt.setText(s);
+			}
+			
+		}
+		
 	}
     
 }

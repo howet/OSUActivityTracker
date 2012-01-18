@@ -1,6 +1,7 @@
 package edu.oregonstate.biomed.actigps;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -9,8 +10,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.*;
-
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -23,6 +22,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.AsyncTask;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
@@ -49,7 +49,9 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 	private long lastUpdateTime = 0;
 	//note that this will happen according to the sensor update period
 	private final long LOG_PERIOD_MIN = 1;
-	private final long LOG_PERIOD_MS = LOG_PERIOD_MIN*(60*1000); //every 10 minutes or so 
+	private final long LOG_PERIOD_MS = LOG_PERIOD_MIN*(1*1000); //every 1 second or so 
+	
+	int patientId = 1008;
 	
 	@Override
 	public IBinder onBind(Intent arg) {
@@ -92,7 +94,7 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 	@Override
 	public void onAccuracyChanged(Sensor sensor, int accuracy) {
 		//We will ignore this for now... but post a log message about it
-		Log.i("ServiceGpsAccelTracker", "Sensor accuracy change");
+		//Log.i("ServiceGpsAccelTracker", "Sensor accuracy change");
 	}
 	
 	private long timeoffset = 0;
@@ -105,12 +107,24 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 			accely.addLast(event.values[1]);
 			accelz.addLast(event.values[2]);
 			if (timeoffset == 0) {
-				timeoffset = System.currentTimeMillis();
+				//timeoffset = System.currentTimeMillis();
+				timeoffset = (new Date()).getTime();
 				timeoffset_start = event.timestamp;
 			}
+			
 			//build the timestamp using the nanotime stamp from the sensor and the
 			//offset from the RTC, keep the result in microseconds
-			accelt.addLast(timeoffset*1000+(event.timestamp - timeoffset_start)/1000);
+			accelt.addLast(timeoffset*1000+(event.timestamp - timeoffset_start)/1000);			
+			
+			Intent i = new Intent("PHONE_LOCATION_UPDATE");
+			Bundle b = new Bundle();
+			b.putString("x", Float.toString(event.values[0]));
+			b.putString("y", Float.toString(event.values[1]));
+			b.putString("z", Float.toString(event.values[2]));
+			b.putString("t", accelt.getLast().toString());
+			i.putExtras(b);
+			sendBroadcast(i);
+			
 			break;
 		case Sensor.TYPE_GYROSCOPE:
 			
@@ -135,6 +149,14 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 		}
 	}
 	
+	public int getPatientId() {
+		return patientId;
+	}
+
+	public void setPatientId(int patientId) {
+		this.patientId = patientId;
+	}
+
 	void postNotification(String text) {
 		int icon = R.drawable.icon;        // icon from resources
 		CharSequence tickerText = text;              // ticker-text
@@ -245,14 +267,23 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 		}
 		
 		void doHttpPost() {
-			final UUID xUUID = UUID.fromString("c924844d-b86e-4f34-a0e4-5cf115471bcc");
+			/*final UUID xUUID = UUID.fromString("c924844d-b86e-4f34-a0e4-5cf115471bcc");
 			final UUID yUUID = UUID.fromString("2e0d2893-f6d0-4b0c-bfcc-3ac7f4df3557");
-			final UUID zUUID = UUID.fromString("a5614559-5a25-486a-aaac-fd6ac985e897");
+			final UUID zUUID = UUID.fromString("a5614559-5a25-486a-aaac-fd6ac985e897");*/
 			
-			final int pid = 997;
+			final UUID xUUID = UUID.fromString("2a26c468-bb61-4981-8ccb-24a40e85b41e");
+			final UUID yUUID = UUID.fromString("1fc8a314-ca47-4376-8aa4-bf77237dd809");
+			final UUID zUUID = UUID.fromString("b792a01e-94e7-4a14-bdff-a5d82a893802");
+			
+			//final int pid = 997;
+			final int pid = getPatientId();
 			
 			String domain = "Chunk1";
-			String url = "http://aws1-suzdj8btkn.elasticbeanstalk.com/upload";
+			//String url = "http://aws1-suzdj8btkn.elasticbeanstalk.com/upload";
+			//String url = "http://192.168.2.104/~taj/log-data.php";
+			//String url = "http://192.168.2.32:8080/upload";
+			String url = "http://dataserv.basementserver.org/upload";
+			Log.i("ServiceGpsAccelTracker", "Trying to post data");
 			
 			HttpClient httpclient = new DefaultHttpClient();
 			HttpPost httppost = new HttpPost(url);
@@ -261,6 +292,8 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 			data += buildDataString(accelx, xUUID, pid);
 			data += buildDataString(accely, yUUID, pid);
 			data += buildDataString(accelz, zUUID, pid);
+			
+			//data = buildDataStringNew(accelx, accely, accelz);
 			
 			try {
 				List<NameValuePair> nvp = new ArrayList<NameValuePair>(2);
@@ -276,6 +309,25 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 			}
 		}
 		
+		String buildDataStringNew(LinkedList<Float> x, LinkedList<Float> y, LinkedList<Float> z) {
+			String data = "";
+			
+			ListIterator<Float> xi = x.listIterator();
+			ListIterator<Float> yi = y.listIterator();
+			ListIterator<Float> zi = z.listIterator();
+			ListIterator<Long>  t = accelt.listIterator();
+			
+			while (t.hasNext()) {
+				float xc = xi.next();
+				float yc = yi.next();
+				float zc = zi.next();
+				long tc = t.next();
+				data += "" + tc + "," + xc + "," + yc + "," + zc + "\n";
+			}
+			
+			return data;
+		}
+		
 		String buildDataString(LinkedList<Float> l, UUID u, int pid) {
 			//build the data string
 			String data = "";
@@ -284,7 +336,7 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 			while (a.hasNext()) {
 				float ac = a.next();
 				long tc = t.next();
-				data += "" + tc + " " + pid + " " + u + " " + ac + "\r\n";
+				data += "" + tc/1000 + " " + pid + " " + u + " " + ac + "\r\n";
 			}
 			return data;
 		}
@@ -294,7 +346,7 @@ public class ServiceGpsTracker extends Service implements SensorEventListener {
 			//Attempt to write the data to the file
 			writeFile();
 			//do the http post
-			//doHttpPost();
+			doHttpPost();
 			return null;
 		}
 		
