@@ -1,7 +1,5 @@
 package edu.oregonstate.biomed.actigps;
 
-import java.util.LinkedList;
-
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -11,9 +9,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -109,12 +105,12 @@ public class ActivityGpsTrackerActivity extends Activity {
     /*
      * Service related things
      */
-    private ServiceGpsTracker serv = null;
+    private ActivityTrackerService serv = null;
     
 	private ServiceConnection mConnection = new ServiceConnection() {
 
 		public void onServiceConnected(ComponentName className, IBinder binder) {
-			serv = ((ServiceGpsTracker.TrackerBinder) binder).getTracker();
+			serv = ((ActivityTrackerService.TrackerBinder) binder).getTracker();
 			Toast.makeText(ActivityGpsTrackerActivity.this, "Connected to service",
 					Toast.LENGTH_SHORT).show();
 			
@@ -127,12 +123,12 @@ public class ActivityGpsTrackerActivity extends Activity {
 	};
 	
 	private void doBindService() {
-		bindService(new Intent(this, ServiceGpsTracker.class), mConnection,
+		bindService(new Intent(this, ActivityTrackerService.class), mConnection,
 				Context.BIND_AUTO_CREATE);
 	}
 	
 	public void onClickStartService(View v) {
-		startService(new Intent(this, ServiceGpsTracker.class));
+		startService(new Intent(this, ActivityTrackerService.class));
 	}
 	
 	public void onClickStopService(View v) {
@@ -143,7 +139,7 @@ public class ActivityGpsTrackerActivity extends Activity {
     		// catch if the receiver is not registered
     	}
 		
-		stopService(new Intent(this, ServiceGpsTracker.class));
+		stopService(new Intent(this, ActivityTrackerService.class));
 	}
 	
 	public void onClickGetData(View v) {
