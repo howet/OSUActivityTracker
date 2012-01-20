@@ -19,7 +19,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:label="ServiceGpsTracker" android:name="ServiceGpsTracker"></service>
+        <service android:label="ServiceGpsTracker" android:name="ActivityTrackerService"></service>
 
     </application>
 </manifest>
