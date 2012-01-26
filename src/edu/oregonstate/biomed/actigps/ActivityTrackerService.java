@@ -56,8 +56,6 @@ public class ActivityTrackerService extends Service {
 	private WiFiScanReceiver mWifiRcvr = null;
 	private Timer mBackgroundTimer = null;
 	
-	private AsyncHttpPoster httpPoster = null;
-	
 	private final IBinder mBinder = new TrackerBinder();
 	
 	int patientId = 1008;
@@ -100,19 +98,23 @@ public class ActivityTrackerService extends Service {
 		
 		/* start http post timer */
         mBackgroundTimer = new Timer();
-        httpPoster = new AsyncHttpPoster();
         
         mBackgroundTimer.scheduleAtFixedRate( new TimerTask() {
             public void run() {
             	Log.i(TAG, "timer expired");
     			String data = "";
     			data = mSensorRcvr.getDataString();
+    			mSensorRcvr.clearData(); /* clear all the data we just received */
+    			
     			if(data.length() > 0)
-    				httpPoster.execute(data);
+    				doHttpPost(data);
     			
     			data = mWifiRcvr.getDataString();
+    			mSensorRcvr.clearData(); /* clear all the data we just received */
+    			
     			if(data.length() > 0)
-    				httpPoster.execute(data);
+    				doHttpPost(data);
+    			
     			Log.i(TAG, "done with timer routine");
              }
           }, 0, POST_PERIOD*1000);
@@ -160,53 +162,29 @@ public class ActivityTrackerService extends Service {
 		mNotify.notify(0, notification);
 	}
 	
-	protected Handler mHandler = new Handler();
-	
-	protected class AsyncHttpPoster extends AsyncTask<String, String, String> {
+	private String doHttpPost(String data) {			
 		
-		public AsyncHttpPoster() {} /* empty constructor */
-		
-		String doHttpPost(String data) {			
-			
-			String domain = "Chunk1";
+		String domain = "Chunk1";
 
-			Log.i(TAG, "Trying to post data: " + data);
+		Log.i(TAG, "Trying to post data: " + data);
+		
+		HttpClient httpclient = new DefaultHttpClient();
+		HttpPost httppost = new HttpPost(UPLOAD_URL);
+		
+		try {
+			List<NameValuePair> nvp = new ArrayList<NameValuePair>(2);
 			
-			HttpClient httpclient = new DefaultHttpClient();
-			HttpPost httppost = new HttpPost(UPLOAD_URL);
+			nvp.add(new BasicNameValuePair("domain", domain));
+			nvp.add(new BasicNameValuePair("data", data));
+			httppost.setEntity(new UrlEncodedFormEntity(nvp));
 			
-			try {
-				List<NameValuePair> nvp = new ArrayList<NameValuePair>(2);
-				
-				nvp.add(new BasicNameValuePair("domain", domain));
-				nvp.add(new BasicNameValuePair("data", data));
-				httppost.setEntity(new UrlEncodedFormEntity(nvp));
-				
-				//HttpResponse r = httpclient.execute(httppost);
-				//Log.i(TAG,"Http response: " + r.getStatusLine().toString());
-				return "";//r.getStatusLine().toString();
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-			return "Unsuccessful in HTTP POST.";
+			HttpResponse r = httpclient.execute(httppost);
+			Log.d(TAG,"Http response: " + r.getStatusLine().toString());
+			return r.getStatusLine().toString();
 		}
-		
-		
-		@Override
-		protected String doInBackground(String... params) {
-			if(params.length > 0)
-			{
-				Log.i(TAG, "Post HTTP");
-				return doHttpPost(params[0]);
-			}
-			else return "";
+		catch (IOException e) {
+			e.printStackTrace();
 		}
-		
-		@Override
-		protected void onPostExecute(String result) {
-			super.onPostExecute(result);
-		}
-		
+		return "Unsuccessful in HTTP POST.";
 	}
 }

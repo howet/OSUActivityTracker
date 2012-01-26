@@ -3,6 +3,7 @@ package edu.oregonstate.biomed.actigps;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 import android.content.Intent;
 import android.hardware.Sensor;
@@ -17,6 +18,8 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	private ActivityTrackerService parentService = null;
 	private SensorManager mSensorManager = null;
 	private Sensor mAccelerometer = null;
+	
+	private ReentrantLock dataLock = new ReentrantLock();
 	
 	private ArrayList<Float> accelx = new ArrayList<Float>();
 	private ArrayList<Float> accely = new ArrayList<Float>();
@@ -37,7 +40,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 		mSensorManager = serv.sensors;
 		mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 		
-		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
+		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
 	}
 	
 	@Override
@@ -63,10 +66,14 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	@Override
 	public void clearData()
 	{
+		dataLock.lock(); /* acquire data lock */
+		
 		accelx.clear();
 		accely.clear();
 		accelz.clear();
 		accelt.clear();
+		
+		dataLock.unlock(); /* release data lock */
 	}
 
 	@Override
@@ -74,6 +81,8 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	{
 		switch (event.sensor.getType()) {
 			case Sensor.TYPE_ACCELEROMETER:
+				dataLock.lock(); /* acquire data lock */
+				
 				accelx.add(event.values[0]);
 				accely.add(event.values[1]);
 				accelz.add(event.values[2]);
@@ -99,6 +108,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				i.putExtras(b);
 				parentService.sendBroadcast(i);
 				
+				dataLock.unlock(); /* release data lock */
 				break;
 			case Sensor.TYPE_GYROSCOPE:
 				
@@ -112,7 +122,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	@Override
 	public void onAccuracyChanged(Sensor sensor, int accuracy)
 	{
-		//We will ignore this for now... but post a log message about it
+		/* We will ignore this for now... but post a log message about it */
 		Log.i(ActivityTrackerService.TAG, "Sensor accuracy change");
 	}
 
@@ -123,14 +133,26 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	}
 	
 	private String buildDataString(ArrayList<Float> list, UUID u, int pid) {
-		//build the data string
+		dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
+		
 		String data = "";
 		for(int i = 0; i < list.size(); i++)
 		{
 			float val = list.get(i);
-			long time = accelt.get(i);
-			data += "" + time/1000 + " " + pid + " " + u + " " + val + "\r\n";
+			long time = 0;
+			if( accelt.size() > i )
+			{
+				time = accelt.get(i);
+				data += "" + time/1000 + " " + pid + " " + u + " " + val + "\r\n";
+			}
+			else
+			{
+				Log.w(ActivityTrackerService.TAG, "Warning: more Accelerometer data points than timestamps. Disregarding data point.");
+			}
 		}
+		
+		dataLock.unlock(); /* release data lock */
+		
 		return data;
 	}
 
