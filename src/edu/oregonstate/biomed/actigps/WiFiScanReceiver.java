@@ -24,7 +24,7 @@ import android.util.Log;
 public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySensor {
 
 	private static final int SCAN_PERIOD = 5; /* scan every 5 seconds */
-	private static final UUID rssiUUID = UUID.fromString("8f7aa070-464d-11e1-b86c-0800200c9a66");
+	private static final UUID rssiUUID = UUID.fromString("e74dce41-c487-42aa-915b-e59e4864b4ee");
 	
 	private ReentrantLock dataLock = new ReentrantLock();
 	
@@ -89,11 +89,20 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		dataLock.unlock(); /* release data lock */
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public String getDataString()
 	{
 		final int pid = parentService.getPatientId();
-		String data = buildDataString(rssiVals, rssiUUID, pid);
+		
+		dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
+		
+		ArrayList<BasicNameValuePair> r = (ArrayList<BasicNameValuePair>) rssiVals.clone();
+		ArrayList<Long> t = (ArrayList<Long>) rssiTimes.clone();
+		
+		dataLock.unlock(); /* release data lock */
+		
+		String data = buildDataString(r, t, rssiUUID, pid);
 		
 		return data;
 	}
@@ -115,18 +124,24 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		parentService.unregisterReceiver(this);
 	}
 	
-	private String buildDataString(ArrayList<BasicNameValuePair> list, UUID u, int pid) {
-		dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
-
+	/**
+	 * Create a string for the HTTP post based on data, uuid, pid, and timestamps
+	 * @param list raw rssi data
+	 * @param u uuid of sensor
+	 * @param pid patient ID
+	 * @param times array of timestamps matching data
+	 * @return formatted string
+	 */
+	private String buildDataString(ArrayList<BasicNameValuePair> list, ArrayList<Long> times, UUID u, int pid) {
 		String data = "";
 		for(int i = 0; i < list.size(); i++)
 		{
 			BasicNameValuePair bnvp = list.get(i);
 			String val = bnvp.getName() + "/" + bnvp.getValue();
 			long time = 0;
-			if( rssiTimes.size() > i )
+			if( times.size() > i )
 			{
-				time = rssiTimes.get(i);
+				time = times.get(i);
 				data += "" + time/1000 + " " + pid + " " + u + " " + val + "\r\n";
 			}
 			else
@@ -135,8 +150,6 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 			}
 			
 		}
-		
-		dataLock.unlock(); /* release data lock */
 		
 		return data;
 	}

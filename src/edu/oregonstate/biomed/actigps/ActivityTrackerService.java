@@ -183,7 +183,7 @@ public class ActivityTrackerService extends Service {
 			return r.getStatusLine().toString();
 		}
 		catch (IOException e) {
-			e.printStackTrace();
+			Log.e(TAG, "Exception Occurred on HTTP post: " + e.toString());
 		}
 		return "Unsuccessful in HTTP POST.";
 	}

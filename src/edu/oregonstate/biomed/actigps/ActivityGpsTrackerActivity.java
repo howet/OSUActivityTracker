@@ -24,7 +24,7 @@ import android.widget.Toast;
 public class ActivityGpsTrackerActivity extends Activity {
     /** Called when the activity is first created. */
 	private DataUpdateReceiver dataUpdateReceiver;
-
+	private Intent serviceIntent = null;
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -32,6 +32,8 @@ public class ActivityGpsTrackerActivity extends Activity {
         setContentView(R.layout.main);
         
         final EditText patientIdEdit = (EditText)findViewById(R.id.patientId);
+        
+        serviceIntent = new Intent(this, ActivityTrackerService.class);
         
         patientIdEdit.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 			
@@ -115,6 +117,7 @@ public class ActivityGpsTrackerActivity extends Activity {
 
 		public void onServiceConnected(ComponentName className, IBinder binder) {
 			serv = ((ActivityTrackerService.TrackerBinder) binder).getTracker();
+			
 			Toast.makeText(ActivityGpsTrackerActivity.this, "Connected to service",
 					Toast.LENGTH_SHORT).show();
 			
@@ -131,13 +134,17 @@ public class ActivityGpsTrackerActivity extends Activity {
 				Context.BIND_AUTO_CREATE);
 	}
 	
+	
+	
 	public void onClickStartService(View v) {
-		startService(new Intent(this, ActivityTrackerService.class));
+		if( serviceIntent != null )
+			startService(serviceIntent);
 	}
 	
 	public void onClickStopService(View v) {
 		try {
-    		if (dataUpdateReceiver != null) unregisterReceiver(dataUpdateReceiver);
+			if( serviceIntent != null )
+				stopService(serviceIntent);
     	}
     	catch (IllegalArgumentException ex) {
     		// catch if the receiver is not registered
