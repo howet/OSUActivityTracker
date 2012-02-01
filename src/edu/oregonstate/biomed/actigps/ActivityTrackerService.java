@@ -1,34 +1,20 @@
 package edu.oregonstate.biomed.actigps;
 
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
-import android.os.AsyncTask;
 import android.os.Binder;
-import android.os.Bundle;
-import android.os.Environment;
-import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
@@ -54,6 +40,8 @@ public class ActivityTrackerService extends Service {
 
 	private SensorReceiver mSensorRcvr = null;
 	private WiFiScanReceiver mWifiRcvr = null;
+	private GpsReceiver mGpsRcvr = null;
+	
 	private Timer mBackgroundTimer = null;
 	
 	private final IBinder mBinder = new TrackerBinder();
@@ -77,6 +65,8 @@ public class ActivityTrackerService extends Service {
 			mSensorRcvr.unregister();
 		if( mWifiRcvr != null )
 			mWifiRcvr.unregister();
+		if( mGpsRcvr != null )
+			mGpsRcvr.unregister();
 	}
 	
 	@Override
@@ -96,6 +86,10 @@ public class ActivityTrackerService extends Service {
 		if (mWifiRcvr == null)
 			mWifiRcvr = new WiFiScanReceiver(this);
 		
+		/* register the gps receiver */
+		if (mGpsRcvr == null)
+			mGpsRcvr = new GpsReceiver(this);
+		
 		/* start http post timer */
         mBackgroundTimer = new Timer();
         
@@ -111,6 +105,12 @@ public class ActivityTrackerService extends Service {
     			
     			data = mWifiRcvr.getDataString();
     			mSensorRcvr.clearData(); /* clear all the data we just received */
+    			
+    			if(data.length() > 0)
+    				doHttpPost(data);
+    			
+    			data = mGpsRcvr.getDataString();
+    			mGpsRcvr.clearData(); /* clear all the data we just received */
     			
     			if(data.length() > 0)
     				doHttpPost(data);

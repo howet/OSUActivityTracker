@@ -102,9 +102,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		
 		dataLock.unlock(); /* release data lock */
 		
-		String data = buildDataString(r, t, rssiUUID, pid);
-		
-		return data;
+		return buildDataString(r, t, rssiUUID, pid);
 	}
 
 	@Override
