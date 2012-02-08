@@ -23,7 +23,7 @@ import android.util.Log;
  */
 public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySensor {
 
-	private static final int SCAN_PERIOD = 5; /* scan every 5 seconds */
+	private static final int SCAN_PERIOD = 6; /* scan every 6 seconds */
 	private static final UUID rssiUUID = UUID.fromString("e74dce41-c487-42aa-915b-e59e4864b4ee");
 	
 	private ReentrantLock dataLock = new ReentrantLock();
@@ -56,7 +56,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		
 		/* start wifi scan timer */
 		scanTimer = new Timer();
-        
+		
 		/* initiate a new scan every X seconds */
 		scanTimer.scheduleAtFixedRate( new TimerTask() {
             public void run() {

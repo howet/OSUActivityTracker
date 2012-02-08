@@ -30,7 +30,7 @@ import org.apache.http.message.BasicNameValuePair;
 public class ActivityTrackerService extends Service {
 	
 	public static final String TAG = "ActTracker";
-	public static final String UPLOAD_URL = "http://dataserv.basementserver.org/upload";
+	public static final String UPLOAD_URL =  "http://dataserv.basementserver.org/upload";
 	public static final int POST_PERIOD = 30; //post every 30 seconds
 	
 	/* Managers */
@@ -97,18 +97,22 @@ public class ActivityTrackerService extends Service {
             public void run() {
             	Log.i(TAG, "timer expired");
     			String data = "";
+    			
+    			Log.d(TAG, "Posting accelerometer data");
     			data = mSensorRcvr.getDataString();
     			mSensorRcvr.clearData(); /* clear all the data we just received */
     			
     			if(data.length() > 0)
     				doHttpPost(data);
     			
+    			Log.d(TAG, "Posting rssi data");
     			data = mWifiRcvr.getDataString();
     			mSensorRcvr.clearData(); /* clear all the data we just received */
     			
     			if(data.length() > 0)
     				doHttpPost(data);
     			
+    			Log.d(TAG, "Posting GPS data");
     			data = mGpsRcvr.getDataString();
     			mGpsRcvr.clearData(); /* clear all the data we just received */
     			
@@ -117,7 +121,7 @@ public class ActivityTrackerService extends Service {
     			
     			Log.i(TAG, "done with timer routine");
              }
-          }, 0, POST_PERIOD*1000);
+          }, POST_PERIOD*1000, POST_PERIOD*1000);
 	}
 	
 	@Override
@@ -166,7 +170,7 @@ public class ActivityTrackerService extends Service {
 		
 		String domain = "Chunk1";
 
-		Log.i(TAG, "Trying to post data: " + data);
+		Log.i(TAG, "Trying to post data of length: " + data.length());
 		
 		HttpClient httpclient = new DefaultHttpClient();
 		HttpPost httppost = new HttpPost(UPLOAD_URL);
@@ -180,6 +184,7 @@ public class ActivityTrackerService extends Service {
 			
 			HttpResponse r = httpclient.execute(httppost);
 			Log.d(TAG,"Http response: " + r.getStatusLine().toString());
+			
 			return r.getStatusLine().toString();
 		}
 		catch (IOException e) {
