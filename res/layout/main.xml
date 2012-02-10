@@ -9,15 +9,21 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:text="@string/hello" />
-<Button android:layout_width="wrap_content" android:id="@+id/button1" android:layout_height="wrap_content" android:text="Start Service" android:onClick="onClickStartService"></Button>
-<Button android:layout_width="wrap_content" android:text="Get Data" android:id="@+id/button2" android:layout_height="wrap_content" android:onClick="onClickGetData"></Button>
-<Button android:layout_width="wrap_content" android:text="Stop Service" android:id="@+id/button3" android:layout_height="wrap_content" android:onClick="onClickStopService"></Button>
+    <LinearLayout android:layout_width="match_parent" android:id="@+id/linearLayout1" android:layout_height="wrap_content">
+        <Button android:text="Start Service" android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/button1" android:onClick="onClickStartService"></Button>
+        <Button android:text="Stop Service" android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/button3" android:onClick="onClickStopService"></Button>
+    </LinearLayout>
+<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/accel_title" android:text="@string/accel_title" android:textStyle="bold"></TextView>
 
 <TextView
-    android:id="@+id/xLabel"
+    android:id="@+id/accel_data"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:text="@string/HelloX" />
+<TextView android:fitsSystemWindows="true" android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="@string/gps_title" android:id="@+id/gps_title" android:textStyle="bold"></TextView>
+<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/gps_data" android:text="@string/HelloX"></TextView>
+
+   
 
 <EditText
     android:id="@+id/patientId"

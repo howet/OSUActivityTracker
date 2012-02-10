@@ -20,7 +20,7 @@ import android.widget.Toast;
 public class ActivityGpsTrackerActivity extends Activity {
     /** Called when the activity is first created. */
 	private DataUpdateReceiver dataUpdateReceiver;
-	private Intent serviceIntent = null;
+	//private Intent serviceIntent = null;
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -29,7 +29,7 @@ public class ActivityGpsTrackerActivity extends Activity {
         
         final EditText patientIdEdit = (EditText)findViewById(R.id.patientId);
         
-        serviceIntent = new Intent(this, ActivityTrackerService.class);
+        //serviceIntent = new Intent(this, ActivityTrackerService.class);
         
         patientIdEdit.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 			
@@ -71,7 +71,9 @@ public class ActivityGpsTrackerActivity extends Activity {
     	super.onRestart();
     	
     	if (dataUpdateReceiver == null) dataUpdateReceiver = new DataUpdateReceiver();
-    	IntentFilter intentFilter = new IntentFilter("PHONE_LOCATION_UPDATE");
+    	IntentFilter intentFilter = new IntentFilter("PHONE_ACCEL_UPDATE");
+    	registerReceiver(dataUpdateReceiver, intentFilter);
+    	intentFilter = new IntentFilter("PHONE_GPS_UPDATE");
     	registerReceiver(dataUpdateReceiver, intentFilter);
     	
     	Toast.makeText(ActivityGpsTrackerActivity.this, "Resumed",
@@ -133,14 +135,17 @@ public class ActivityGpsTrackerActivity extends Activity {
 	
 	
 	public void onClickStartService(View v) {
-		if( serviceIntent != null )
-			startService(serviceIntent);
+//		if( serviceIntent != null )
+//			startService(serviceIntent);
+		startService(new Intent(this, ActivityTrackerService.class));
 	}
 	
 	public void onClickStopService(View v) {
 		try {
-			if( serviceIntent != null )
-				stopService(serviceIntent);
+//			if( serviceIntent != null )
+//				stopService(serviceIntent);
+			unbindService(mConnection);
+			stopService(new Intent(this, ActivityTrackerService.class));
     	}
     	catch (IllegalArgumentException ex) {
     		// catch if the receiver is not registered
@@ -161,13 +166,18 @@ public class ActivityGpsTrackerActivity extends Activity {
 	private class DataUpdateReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(Context ctx, Intent intent) {
-			if (intent.getAction().equals("PHONE_LOCATION_UPDATE")) {
+			if (intent.getAction().equals("PHONE_ACCEL_UPDATE")) {
 				Bundle data = intent.getExtras();
 				String s = data.getString("x")+","+data.getString("y")+","+data.getString("z");
-				TextView txt = (TextView) findViewById(R.id.xLabel);
+				TextView txt = (TextView) findViewById(R.id.accel_data);
 				txt.setText(s);
 			}
-			
+			if (intent.getAction().equals("PHONE_GPS_UPDATE")) {
+				Bundle data = intent.getExtras();
+				String s = data.getString("x")+","+data.getString("y");
+				TextView txt = (TextView) findViewById(R.id.gps_data);
+				txt.setText(s);
+			}
 		}
 		
 	}

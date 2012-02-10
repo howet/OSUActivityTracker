@@ -83,7 +83,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 			BasicNameValuePair bnvp = new BasicNameValuePair(sr.BSSID, Integer.toString(sr.level));
 			rssiVals.add(bnvp);
 			rssiTimes.add((new Date()).getTime());
-			Log.i(ActivityTrackerService.TAG, "Received RSSI with BSSID: " + bnvp.getName() + ", Value: " + bnvp.getValue());
+			//Log.i(ActivityTrackerService.TAG, "Received RSSI with BSSID: " + bnvp.getName() + ", Value: " + bnvp.getValue());
 		}
 		
 		dataLock.unlock(); /* release data lock */

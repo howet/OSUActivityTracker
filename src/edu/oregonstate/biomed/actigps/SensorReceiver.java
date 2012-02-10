@@ -97,8 +97,8 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				accely.add(event.values[1]);
 				accelz.add(event.values[2]);
 				
-				Log.i(ActivityTrackerService.TAG, "Accelerometer received data of (" + 
-						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
+//				Log.i(ActivityTrackerService.TAG, "Accelerometer received data of (" + 
+//						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
 				
 				if (timeoffset == 0) {
 					timeoffset = (new Date()).getTime();
@@ -109,7 +109,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				   offset from the RTC, keep the result in microseconds */
 				accelt.add(timeoffset*1000+(event.timestamp - timeoffset_start)/1000);			
 				
-				Intent i = new Intent("PHONE_LOCATION_UPDATE");
+				Intent i = new Intent("PHONE_ACCEL_UPDATE");
 				Bundle b = new Bundle();
 				b.putString("x", Float.toString(event.values[0]));
 				b.putString("y", Float.toString(event.values[1]));

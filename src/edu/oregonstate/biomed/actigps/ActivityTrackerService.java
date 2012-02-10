@@ -60,13 +60,14 @@ public class ActivityTrackerService extends Service {
 	
 	@Override
 	public void onDestroy() {
-		Toast.makeText(this, "Destroyed service", Toast.LENGTH_LONG).show();
 		if( mSensorRcvr != null )
 			mSensorRcvr.unregister();
 		if( mWifiRcvr != null )
 			mWifiRcvr.unregister();
 		if( mGpsRcvr != null )
 			mGpsRcvr.unregister();
+		
+		Toast.makeText(this, "Destroyed service", Toast.LENGTH_LONG).show();
 	}
 	
 	@Override
@@ -95,31 +96,26 @@ public class ActivityTrackerService extends Service {
         
         mBackgroundTimer.scheduleAtFixedRate( new TimerTask() {
             public void run() {
-            	Log.i(TAG, "timer expired");
     			String data = "";
     			
     			Log.d(TAG, "Posting accelerometer data");
     			data = mSensorRcvr.getDataString();
-    			mSensorRcvr.clearData(); /* clear all the data we just received */
     			
-    			if(data.length() > 0)
-    				doHttpPost(data);
+    			if(data.length() > 0 &&	doHttpPost(data))
+    				mSensorRcvr.clearData(); /* clear all the data we just received */
     			
     			Log.d(TAG, "Posting rssi data");
     			data = mWifiRcvr.getDataString();
-    			mSensorRcvr.clearData(); /* clear all the data we just received */
     			
-    			if(data.length() > 0)
-    				doHttpPost(data);
+    			if(data.length() > 0 && doHttpPost(data))
+    				mSensorRcvr.clearData(); /* clear all the data we just received */
     			
     			Log.d(TAG, "Posting GPS data");
     			data = mGpsRcvr.getDataString();
-    			mGpsRcvr.clearData(); /* clear all the data we just received */
     			
-    			if(data.length() > 0)
-    				doHttpPost(data);
-    			
-    			Log.i(TAG, "done with timer routine");
+    			if(data.length() > 0 && doHttpPost(data))
+    				mGpsRcvr.clearData(); /* clear all the data we just received */
+
              }
           }, POST_PERIOD*1000, POST_PERIOD*1000);
 	}
@@ -166,7 +162,7 @@ public class ActivityTrackerService extends Service {
 		mNotify.notify(0, notification);
 	}
 	
-	private String doHttpPost(String data) {			
+	private boolean doHttpPost(String data) {			
 		
 		String domain = "Chunk1";
 
@@ -185,11 +181,14 @@ public class ActivityTrackerService extends Service {
 			HttpResponse r = httpclient.execute(httppost);
 			Log.d(TAG,"Http response: " + r.getStatusLine().toString());
 			
-			return r.getStatusLine().toString();
+			if( r.getStatusLine().toString().contains("200 OK"))
+				return true;
+			else
+				return false;
 		}
 		catch (IOException e) {
 			Log.e(TAG, "Exception Occurred on HTTP post: " + e.toString());
 		}
-		return "Unsuccessful in HTTP POST.";
+		return false;
 	}
 }

@@ -2,5 +2,7 @@
 <resources>
     <string name="hello">OSU Activity Tracker Debug App</string>
     <string name="app_name">ActivityGpsTracker</string>
-    <string name="HelloX">Patient ID</string>
+    <string name="HelloX">x,x,x</string>
+    <string name="accel_title">Accelerometer Data</string>
+    <string name="gps_title">GPS Data</string>
 </resources>
