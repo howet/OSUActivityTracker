@@ -49,7 +49,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	{
 		final int pid = parentService.getPatientId();
 		String data = "";
-		
+
 		dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
 		
 		/* copy data to arrays */
@@ -60,16 +60,14 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 		
 		dataLock.unlock(); /* release data lock */
 		
-		if( accelt.size() != (accelx.size() + accely.size() + accelz.size()) / 3) 
-			Log.w(ActivityTrackerService.TAG, "WARNING: acceleration array sizes do not match.");
-		
+		Log.d(ActivityTrackerService.TAG, "Buiding Strings...");
 		if( accelt.size() > 0 )	
 		{
-			data += buildDataString(x, t, xUUID, pid);
-			data += buildDataString(y, t, yUUID, pid);
-			data += buildDataString(z, t, zUUID, pid);
+			data = buildDataString(x, y, z, t, pid);
 		}
-
+		Log.d(ActivityTrackerService.TAG, "Done buidling strings...");
+		
+		
 		return data;
 	}
 
@@ -150,16 +148,32 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	 * @param times array of timestamps matching data
 	 * @return formatted string
 	 */
-	private String buildDataString(ArrayList<Float> list, ArrayList<Long> times, UUID u, int pid) {		
-		String data = "";
-		for(int i = 0; i < list.size(); i++)
+	private String buildDataString(ArrayList<Float> xvals, ArrayList<Float> yvals, ArrayList<Float> zvals, 
+								   ArrayList<Long> tvals, int pid) {		
+		
+		/* use of StringBuilder avoids garbage collection when appending to strings */
+		StringBuilder strBldr = new StringBuilder();
+		float xval, yval, zval, tval;
+		
+		if((xvals.size() != yvals.size()) || (xvals.size() != zvals.size())) 
 		{
-			float val = list.get(i);
-			long time = 0;
-			if( times.size() > i )
+			Log.e(ActivityTrackerService.TAG, "Critical Error: Number of points in accelerometer arrays do not match.");
+			return "";
+		}
+		
+		Log.i(ActivityTrackerService.TAG, "Data Points: " + xvals.size());
+		
+		for(int i = 0; i < xvals.size(); i++)
+		{
+			xval = xvals.get(i);
+			yval = yvals.get(i);
+			zval = zvals.get(i);
+			if( tvals.size() > i )
 			{
-				time = times.get(i);
-				data += "" + time/1000 + " " + pid + " " + u + " " + val + "\r\n";
+				tval = tvals.get(i) / 1000;
+				strBldr.append(tval + " " + pid + " " + xUUID + " " + xval + "\r\n");
+				strBldr.append(tval + " " + pid + " " + yUUID + " " + yval + "\r\n");
+				strBldr.append(tval + " " + pid + " " + zUUID + " " + zval + "\r\n");
 			}
 			else
 			{
@@ -167,7 +181,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 			}
 		}
 		
-		return data;
+		return strBldr.toString();
 	}
 
 }

@@ -5,4 +5,5 @@
     <string name="HelloX">x,x,x</string>
     <string name="accel_title">Accelerometer Data</string>
     <string name="gps_title">GPS Data</string>
+    <string name="time_title">Current Timestamp</string>
 </resources>

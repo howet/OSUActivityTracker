@@ -66,7 +66,10 @@ public class ActivityTrackerService extends Service {
 			mWifiRcvr.unregister();
 		if( mGpsRcvr != null )
 			mGpsRcvr.unregister();
+		if( mBackgroundTimer != null )
+			mBackgroundTimer.cancel();
 		
+		Log.i(TAG, "Stopped Activity Tracker Service.");
 		Toast.makeText(this, "Destroyed service", Toast.LENGTH_LONG).show();
 	}
 	

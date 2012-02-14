@@ -169,8 +169,11 @@ public class ActivityGpsTrackerActivity extends Activity {
 			if (intent.getAction().equals("PHONE_ACCEL_UPDATE")) {
 				Bundle data = intent.getExtras();
 				String s = data.getString("x")+","+data.getString("y")+","+data.getString("z");
+				String t = data.getString("t");
 				TextView txt = (TextView) findViewById(R.id.accel_data);
+				TextView time = (TextView) findViewById(R.id.time_data);
 				txt.setText(s);
+				time.setText(t);
 			}
 			if (intent.getAction().equals("PHONE_GPS_UPDATE")) {
 				Bundle data = intent.getExtras();
