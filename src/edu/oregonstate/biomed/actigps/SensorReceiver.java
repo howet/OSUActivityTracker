@@ -152,7 +152,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 								   ArrayList<Long> tvals, int pid) {		
 		
 		/* use of StringBuilder avoids garbage collection when appending to strings */
-		StringBuilder strBldr = new StringBuilder();
+		StringBuilder data = new StringBuilder();
 		float xval, yval, zval, tval;
 		
 		if((xvals.size() != yvals.size()) || (xvals.size() != zvals.size())) 
@@ -171,9 +171,9 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 			if( tvals.size() > i )
 			{
 				tval = tvals.get(i) / 1000;
-				strBldr.append(tval + " " + pid + " " + xUUID + " " + xval + "\r\n");
-				strBldr.append(tval + " " + pid + " " + yUUID + " " + yval + "\r\n");
-				strBldr.append(tval + " " + pid + " " + zUUID + " " + zval + "\r\n");
+				data.append(tval + " " + pid + " " + xUUID + " " + xval + "\r\n");
+				data.append(tval + " " + pid + " " + yUUID + " " + yval + "\r\n");
+				data.append(tval + " " + pid + " " + zUUID + " " + zval + "\r\n");
 			}
 			else
 			{
@@ -181,7 +181,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 			}
 		}
 		
-		return strBldr.toString();
+		return data.toString();
 	}
 
 }

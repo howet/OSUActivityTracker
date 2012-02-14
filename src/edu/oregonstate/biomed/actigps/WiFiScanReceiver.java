@@ -131,7 +131,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	 * @return formatted string
 	 */
 	private String buildDataString(ArrayList<BasicNameValuePair> list, ArrayList<Long> times, UUID u, int pid) {
-		String data = "";
+		StringBuilder data = new StringBuilder();
 		for(int i = 0; i < list.size(); i++)
 		{
 			BasicNameValuePair bnvp = list.get(i);
@@ -140,7 +140,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 			if( times.size() > i )
 			{
 				time = times.get(i);
-				data += "" + time/1000 + " " + pid + " " + u + " " + val + "\r\n";
+				data.append(time/1000 + " " + pid + " " + u + " " + val + "\r\n");
 			}
 			else
 			{
@@ -149,6 +149,6 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 			
 		}
 		
-		return data;
+		return data.toString();
 	}
 }
