@@ -6,4 +6,7 @@
     <string name="accel_title">Accelerometer Data</string>
     <string name="gps_title">GPS Data</string>
     <string name="time_title">Current Timestamp</string>
+    <string name="wificheckbox">Enable WiFi Tracking</string>
+    <string name="commitsettings">Commit Settings</string>
+    <string name="settingstitle">Background Settings</string>
 </resources>

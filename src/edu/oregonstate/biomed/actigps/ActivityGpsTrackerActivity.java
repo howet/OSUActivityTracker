@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -161,6 +162,25 @@ public class ActivityGpsTrackerActivity extends Activity {
 			Toast.makeText(ActivityGpsTrackerActivity.this, "Got start time of: " + t,
 					Toast.LENGTH_SHORT).show();*/
 		}
+	}
+	
+	public void onClickCommitSettings(View v) {
+		/* stop the current service before applying settings */
+		onClickStopService(v);
+		
+		boolean wifienabled = ((CheckBox)findViewById(R.id.chkbox_wifiscan)).isChecked();
+		
+		/* setup the new settings */
+	    SharedPreferences settings = getSharedPreferences(ActivityTrackerService.PREFS_NAME, 0);
+	    SharedPreferences.Editor editor = settings.edit();
+	    
+	    //TODO: only commit changes and restart service if settings changed */
+	    editor.putBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, wifienabled);
+	    
+	    /* commit changes to settings */
+	    editor.commit();
+	    
+	    onClickStartService(v);
 	}
 	
 	private class DataUpdateReceiver extends BroadcastReceiver {

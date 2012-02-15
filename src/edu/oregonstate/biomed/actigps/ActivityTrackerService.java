@@ -11,6 +11,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
@@ -29,6 +30,13 @@ import org.apache.http.message.BasicNameValuePair;
 
 public class ActivityTrackerService extends Service {
 	
+	/* keys for settings file */
+	public static final String SETTINGS_WIFI_ENABLE_KEY  = "wifiTracking";
+	public static final String SETTINGS_GPS_ENABLE_KEY   = "gpsTracking";
+	public static final String SETTINGS_ACCEL_ENABLE_KEY = "accelTracking";
+	public static final String SETTINGS_GYRO_ENABLE_KEY  = "gyroTracking";
+	
+	public static final String PREFS_NAME = "OSUActivityTrackerPrefs";
 	public static final String TAG = "ActTracker";
 	public static final String UPLOAD_URL =  "http://dataserv.basementserver.org/upload";
 	public static final int POST_PERIOD = 30; //post every 30 seconds
@@ -38,6 +46,11 @@ public class ActivityTrackerService extends Service {
 	LocationManager location;
 	WifiManager wifi;
 
+	/* sensor enable flags */
+	private boolean accel_enable;
+	private boolean gps_enable;
+	private boolean wifi_enable;
+	
 	private SensorReceiver mSensorRcvr = null;
 	private WiFiScanReceiver mWifiRcvr = null;
 	private GpsReceiver mGpsRcvr = null;
@@ -77,21 +90,27 @@ public class ActivityTrackerService extends Service {
 	public void onStart(Intent intent, int startid) {
 		Log.i(TAG, "Starting Activity Tracker Service.");
 
+		/* restore preferences */
+		SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
+		wifi_enable = settings.getBoolean(SETTINGS_WIFI_ENABLE_KEY, true);
+		gps_enable = settings.getBoolean(SETTINGS_GPS_ENABLE_KEY, true);
+		accel_enable = settings.getBoolean(SETTINGS_ACCEL_ENABLE_KEY, true);
+		
 		/* get system services */
 		sensors = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
 		wifi = (WifiManager)getSystemService(Context.WIFI_SERVICE);
 		location = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
 		
         /* register the sensor receiver */
-		if (mSensorRcvr == null)
+		if (mSensorRcvr == null && accel_enable == true)
 			mSensorRcvr = new SensorReceiver(this);		
         
         /* register the wifi scan receiver */
-		if (mWifiRcvr == null)
+		if (mWifiRcvr == null && wifi_enable == true)
 			mWifiRcvr = new WiFiScanReceiver(this);
 		
 		/* register the gps receiver */
-		if (mGpsRcvr == null)
+		if (mGpsRcvr == null && gps_enable == true)
 			mGpsRcvr = new GpsReceiver(this);
 		
 		/* start http post timer */
