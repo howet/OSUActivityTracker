@@ -20,7 +20,7 @@
 	      android:layout_height="wrap_content"
 		  android:id="@+id/dataTab"
 		  android:orientation="vertical"
-		  android:paddingTop="70px">
+		  android:paddingTop="70dp">
 		  
 			<TextView
 			        android:layout_width="fill_parent"
@@ -61,7 +61,7 @@
 		    android:layout_height="wrap_content"
 		    android:id="@+id/settingsTab"
 		    android:orientation="vertical"
-		    android:paddingTop="70px">
+		    android:paddingTop="70dp">
 		  
 		    <TextView android:id="@+id/textView1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:text="@string/settingstitle"></TextView>
 		    <CheckBox android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/chkbox_wifiscan" android:text="@string/wificheckbox" android:checked="true"></CheckBox>
