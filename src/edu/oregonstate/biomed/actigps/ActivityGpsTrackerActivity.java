@@ -15,6 +15,8 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.TabHost;
+import android.widget.TabHost.TabSpec;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,6 +29,21 @@ public class ActivityGpsTrackerActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
+        
+        TabHost tabHost=(TabHost)findViewById(R.id.tabHost);
+        tabHost.setup();
+        
+        TabSpec spec1=tabHost.newTabSpec("Tab 1");
+        spec1.setContent(R.id.dataTab);
+        spec1.setIndicator("Data");
+        
+        TabSpec spec2=tabHost.newTabSpec("Tab 2");
+        spec2.setIndicator("Settings");
+        spec2.setContent(R.id.settingsTab);
+        
+        tabHost.addTab(spec1);
+        tabHost.addTab(spec2);
+        
         
         final EditText patientIdEdit = (EditText)findViewById(R.id.patientId);
         
