@@ -9,4 +9,6 @@
     <string name="wificheckbox">Enable WiFi Tracking</string>
     <string name="commitsettings">Commit Settings</string>
     <string name="settingstitle">Background Settings</string>
+    <string name="gpscheckbox">Enable GPS Tracking</string>
+    <string name="accelcheckbox">Enable Accelerometer Logging</string>
 </resources>

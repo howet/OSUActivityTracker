@@ -23,11 +23,14 @@ import android.widget.Toast;
 public class ActivityGpsTrackerActivity extends Activity {
     /** Called when the activity is first created. */
 	private DataUpdateReceiver dataUpdateReceiver;
-	//private Intent serviceIntent = null;
+	private boolean serviceRunning;
+	
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        /* Set up tabbed view */
         setContentView(R.layout.main);
         
         TabHost tabHost=(TabHost)findViewById(R.id.tabHost);
@@ -44,10 +47,14 @@ public class ActivityGpsTrackerActivity extends Activity {
         tabHost.addTab(spec1);
         tabHost.addTab(spec2);
         
+    	/* update the ui based on saved setting on start */
+        updateSettings();
+        
+        /* we have not started the service yet */
+        serviceRunning = false;
+        
         
         final EditText patientIdEdit = (EditText)findViewById(R.id.patientId);
-        
-        //serviceIntent = new Intent(this, ActivityTrackerService.class);
         
         patientIdEdit.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 			
@@ -78,10 +85,7 @@ public class ActivityGpsTrackerActivity extends Activity {
         SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
         
         int nextPatientId = settings.getInt("lastPatientId", 1008) + 1;
-        patientIdEdit.setText(""+nextPatientId);
-        
-        doBindService();
-        
+        patientIdEdit.setText(""+nextPatientId);        
     }
     
     @Override
@@ -153,51 +157,68 @@ public class ActivityGpsTrackerActivity extends Activity {
 	
 	
 	public void onClickStartService(View v) {
-//		if( serviceIntent != null )
-//			startService(serviceIntent);
+        doBindService();
 		startService(new Intent(this, ActivityTrackerService.class));
+		serviceRunning = true;
 	}
 	
 	public void onClickStopService(View v) {
 		try {
-//			if( serviceIntent != null )
-//				stopService(serviceIntent);
 			unbindService(mConnection);
 			stopService(new Intent(this, ActivityTrackerService.class));
+			serviceRunning = false;
     	}
     	catch (IllegalArgumentException ex) {
     		// catch if the receiver is not registered
     	}
-		
-		stopService(new Intent(this, ActivityTrackerService.class));
 	}
-	
-	public void onClickGetData(View v) {
-		if (serv != null) {
-			/*LinkedList<Long> d = serv.getData();
-			long t = d.getFirst();
-			Toast.makeText(ActivityGpsTrackerActivity.this, "Got start time of: " + t,
-					Toast.LENGTH_SHORT).show();*/
-		}
-	}
+
 	
 	public void onClickCommitSettings(View v) {
+		/* save service running state */
+		boolean wasRunning = serviceRunning;
+		
 		/* stop the current service before applying settings */
 		onClickStopService(v);
 		
 		boolean wifienabled = ((CheckBox)findViewById(R.id.chkbox_wifiscan)).isChecked();
+		boolean gpsenabled = ((CheckBox)findViewById(R.id.chkbox_gpsscan)).isChecked();
+		boolean accelenabled = ((CheckBox)findViewById(R.id.chkbox_accel)).isChecked();
 		
 		/* setup the new settings */
 	    SharedPreferences settings = getSharedPreferences(ActivityTrackerService.PREFS_NAME, 0);
 	    SharedPreferences.Editor editor = settings.edit();
 	    
-	    //TODO: only commit changes and restart service if settings changed */
-	    editor.putBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, wifienabled);
+	    /* check if the setting already was set to the correct value.  
+	     * Default value is the opposite of desired value, 
+	     * so setting will be written if no setting was present. */
+	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, !wifienabled) != wifienabled)
+	    	editor.putBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, wifienabled);
+	    
+	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, !gpsenabled) != gpsenabled)
+	    	editor.putBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, gpsenabled);
+	    
+	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, !accelenabled) != accelenabled)
+	    	editor.putBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, accelenabled);
 	    
 	    /* commit changes to settings */
 	    editor.commit();
 	    
-	    onClickStartService(v);
+	    /* only start the service if it was running before */
+	    if( wasRunning == true )
+	    	onClickStartService(v);
+	}
+
+	private void updateSettings(){
+		SharedPreferences settings = getSharedPreferences(ActivityTrackerService.PREFS_NAME, 0);
+		boolean wifienabled = settings.getBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, true);
+		boolean gpsenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, true);
+		boolean accelenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, true);
+		
+		/* update the checked state of the checkboxes */
+		((CheckBox)findViewById(R.id.chkbox_wifiscan)).setChecked(wifienabled);
+		((CheckBox)findViewById(R.id.chkbox_gpsscan)).setChecked(gpsenabled);
+		((CheckBox)findViewById(R.id.chkbox_accel)).setChecked(accelenabled);
 	}
 	
 	private class DataUpdateReceiver extends BroadcastReceiver {

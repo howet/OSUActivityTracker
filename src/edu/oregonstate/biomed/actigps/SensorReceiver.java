@@ -95,8 +95,8 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				accely.add(event.values[1]);
 				accelz.add(event.values[2]);
 				
-//				Log.i(ActivityTrackerService.TAG, "Accelerometer received data of (" + 
-//						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
+				Log.i(ActivityTrackerService.TAG, "Accelerometer received data of (" + 
+						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
 				
 				if (timeoffset == 0) {
 					timeoffset = (new Date()).getTime();

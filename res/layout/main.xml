@@ -64,7 +64,27 @@
 		    android:paddingTop="70dp">
 		  
 		    <TextView android:id="@+id/textView1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:text="@string/settingstitle"></TextView>
-		    <CheckBox android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/chkbox_wifiscan" android:text="@string/wificheckbox" android:checked="true"></CheckBox>
+		    <CheckBox 
+		    android:layout_width="wrap_content" 
+		    android:layout_height="wrap_content" 
+		    android:id="@+id/chkbox_wifiscan" 
+		    android:text="@string/wificheckbox" 
+		    android:checked="true" />
+		    
+		    <CheckBox 
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content" 
+            android:id="@+id/chkbox_gpsscan" 
+            android:text="@string/gpscheckbox" 
+            android:checked="true" />
+            
+            <CheckBox 
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content" 
+            android:id="@+id/chkbox_accel" 
+            android:text="@string/accelcheckbox" 
+            android:checked="true" />
+		    
 		    <Button android:layout_height="wrap_content" android:text="@string/commitsettings" android:layout_width="wrap_content" android:layout_gravity="center" android:id="@+id/button_commitSettings" android:onClick="onClickCommitSettings"></Button>
 		</LinearLayout>
      
