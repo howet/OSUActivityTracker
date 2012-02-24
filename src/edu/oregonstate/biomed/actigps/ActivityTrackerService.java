@@ -35,11 +35,13 @@ public class ActivityTrackerService extends Service {
 	public static final String SETTINGS_GPS_ENABLE_KEY   = "gpsTracking";
 	public static final String SETTINGS_ACCEL_ENABLE_KEY = "accelTracking";
 	public static final String SETTINGS_GYRO_ENABLE_KEY  = "gyroTracking";
+	public static final String SETTINGS_PUSH_INTERVAL_KEY  = "pushInterval";
 	
 	public static final String PREFS_NAME = "OSUActivityTrackerPrefs";
 	public static final String TAG = "ActTracker";
 	public static final String UPLOAD_URL =  "http://dataserv.basementserver.org/upload";
-	public static final int POST_PERIOD = 30; //post every 30 seconds
+	
+	private int POST_PERIOD; /* how often to post data to server */
 	
 	/* Managers */
 	SensorManager sensors;
@@ -50,6 +52,7 @@ public class ActivityTrackerService extends Service {
 	private boolean accel_enable;
 	private boolean gps_enable;
 	private boolean wifi_enable;
+	private boolean gyro_enable;
 	
 	private SensorReceiver mSensorRcvr = null;
 	private WiFiScanReceiver mWifiRcvr = null;
@@ -95,23 +98,35 @@ public class ActivityTrackerService extends Service {
 		wifi_enable = settings.getBoolean(SETTINGS_WIFI_ENABLE_KEY, true);
 		gps_enable = settings.getBoolean(SETTINGS_GPS_ENABLE_KEY, true);
 		accel_enable = settings.getBoolean(SETTINGS_ACCEL_ENABLE_KEY, true);
+		gyro_enable = settings.getBoolean(SETTINGS_GYRO_ENABLE_KEY, true);
+		POST_PERIOD = settings.getInt(SETTINGS_PUSH_INTERVAL_KEY, 30);
 		
 		/* get system services */
 		sensors = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
 		wifi = (WifiManager)getSystemService(Context.WIFI_SERVICE);
 		location = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
 		
-        /* register the sensor receiver */
-		if (mSensorRcvr == null && accel_enable == true)
-			mSensorRcvr = new SensorReceiver(this);		
+		mSensorRcvr = new SensorReceiver(this);	
+		
+        /* register the accelerometer receiver */
+		if (accel_enable == true)
+			mSensorRcvr.registerAccelerometer();
+		
+        /* register the gyro receiver */
+		if (gyro_enable == true)
+			mSensorRcvr.registerGyroscope();
         
+		mWifiRcvr = new WiFiScanReceiver(this);
+		
         /* register the wifi scan receiver */
-		if (mWifiRcvr == null && wifi_enable == true)
-			mWifiRcvr = new WiFiScanReceiver(this);
+		if (wifi_enable == true)
+			mWifiRcvr.register();
+		
+		mGpsRcvr = new GpsReceiver(this);
 		
 		/* register the gps receiver */
-		if (mGpsRcvr == null && gps_enable == true)
-			mGpsRcvr = new GpsReceiver(this);
+		if (gps_enable == true)
+			mGpsRcvr.register();
 		
 		/* start http post timer */
         mBackgroundTimer = new Timer();
@@ -120,17 +135,21 @@ public class ActivityTrackerService extends Service {
             public void run() {
     			String data = "";
     			
-    			Log.d(TAG, "Posting accelerometer data");
+    			Log.d(TAG, "Posting accelerometer/gyro data");
     			data = mSensorRcvr.getDataString();
     			
     			if(data.length() > 0 &&	doHttpPost(data))
     				mSensorRcvr.clearData(); /* clear all the data we just received */
+    			
+    			data = "";
     			
     			Log.d(TAG, "Posting rssi data");
     			data = mWifiRcvr.getDataString();
     			
     			if(data.length() > 0 && doHttpPost(data))
     				mSensorRcvr.clearData(); /* clear all the data we just received */
+    			
+    			data = "";
     			
     			Log.d(TAG, "Posting GPS data");
     			data = mGpsRcvr.getDataString();

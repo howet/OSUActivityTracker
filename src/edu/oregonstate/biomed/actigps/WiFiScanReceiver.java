@@ -51,7 +51,14 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		
 		rssiVals = new ArrayList<BasicNameValuePair>();
 		rssiTimes = new ArrayList<Long>();
-		
+	}
+	
+	
+	/**
+	 * Registers the WiFi receiver
+	 */
+	public void register()
+	{
 		parentService.registerReceiver(this, new IntentFilter(
 				WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
 		
@@ -120,6 +127,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	@Override
 	public void unregister()
 	{
+		scanTimer.cancel();
 		parentService.unregisterReceiver(this);
 	}
 	

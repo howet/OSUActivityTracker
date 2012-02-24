@@ -11,4 +11,5 @@
     <string name="settingstitle">Background Settings</string>
     <string name="gpscheckbox">Enable GPS Tracking</string>
     <string name="accelcheckbox">Enable Accelerometer Logging</string>
+    <string name="gyrocheckbox">Enable Gyroscope Logging</string>
 </resources>

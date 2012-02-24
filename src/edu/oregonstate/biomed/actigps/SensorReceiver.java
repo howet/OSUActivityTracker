@@ -18,13 +18,22 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	private ActivityTrackerService parentService = null;
 	private SensorManager mSensorManager = null;
 	private Sensor mAccelerometer = null;
+	private Sensor mGyroscope = null;
 	
-	private ReentrantLock dataLock = new ReentrantLock();
+	private ReentrantLock accelDataLock = new ReentrantLock();
+	private ReentrantLock gyroDataLock = new ReentrantLock();
 	
+	/* accelerometer data */
 	private ArrayList<Float> accelx = new ArrayList<Float>();
 	private ArrayList<Float> accely = new ArrayList<Float>();
 	private ArrayList<Float> accelz = new ArrayList<Float>();
 	private ArrayList<Long> accelt = new ArrayList<Long>();
+	
+	/* gyroscope data */
+	private ArrayList<Float> gyrox = new ArrayList<Float>();
+	private ArrayList<Float> gyroy = new ArrayList<Float>();
+	private ArrayList<Float> gyroz = new ArrayList<Float>();
+	private ArrayList<Long> gyrot = new ArrayList<Long>();
 	
 	private final UUID xUUID = UUID.fromString("2a26c468-bb61-4981-8ccb-24a40e85b41e");
 	private final UUID yUUID = UUID.fromString("1fc8a314-ca47-4376-8aa4-bf77237dd809");
@@ -36,12 +45,31 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	public SensorReceiver(ActivityTrackerService serv)
 	{
 		parentService = serv;
-		
 		mSensorManager = serv.sensors;
+	}
+	
+	
+	/**
+	 * Registers the receiver for the accelerometer
+	 */
+	public void registerAccelerometer()
+	{
 		mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 		
 		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
 	}
+	
+	
+	/**
+	 * Registers the receiver for the gyroscope
+	 */
+	public void registerGyroscope()
+	{
+		mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+		
+		mSensorManager.registerListener(this, mGyroscope, SensorManager.SENSOR_DELAY_GAME);
+	}
+	
 	
 	@SuppressWarnings("unchecked")
 	@Override
@@ -50,7 +78,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 		final int pid = parentService.getPatientId();
 		String data = "";
 
-		dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
+		accelDataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
 		
 		/* copy data to arrays */
 		ArrayList<Float> x = (ArrayList<Float>) accelx.clone();
@@ -58,7 +86,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 		ArrayList<Float> z = (ArrayList<Float>) accelz.clone();
 		ArrayList<Long> t = (ArrayList<Long>) accelt.clone();
 		
-		dataLock.unlock(); /* release data lock */
+		accelDataLock.unlock(); /* release data lock */
 		
 		Log.d(ActivityTrackerService.TAG, "Buiding Strings...");
 		if( accelt.size() > 0 )	
@@ -74,14 +102,23 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	@Override
 	public void clearData()
 	{
-		dataLock.lock(); /* acquire data lock */
+		accelDataLock.lock(); /* acquire data lock */
 		
 		accelx.clear();
 		accely.clear();
 		accelz.clear();
 		accelt.clear();
 		
-		dataLock.unlock(); /* release data lock */
+		accelDataLock.unlock(); /* release data lock */
+		
+		gyroDataLock.lock(); /* acquire data lock */
+		
+		gyrox.clear();
+		gyroy.clear();
+		gyroz.clear();
+		gyrot.clear();
+		
+		gyroDataLock.unlock(); /* release data lock */
 	}
 
 	@Override
@@ -89,14 +126,14 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	{
 		switch (event.sensor.getType()) {
 			case Sensor.TYPE_ACCELEROMETER:
-				dataLock.lock(); /* acquire data lock */
+				accelDataLock.lock(); /* acquire data lock */
 				
 				accelx.add(event.values[0]);
 				accely.add(event.values[1]);
 				accelz.add(event.values[2]);
 				
-				Log.i(ActivityTrackerService.TAG, "Accelerometer received data of (" + 
-						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
+//				Log.i(ActivityTrackerService.TAG, "Accelerometer received data of (" + 
+//						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
 				
 				if (timeoffset == 0) {
 					timeoffset = (new Date()).getTime();
@@ -107,6 +144,8 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				   offset from the RTC, keep the result in microseconds */
 				accelt.add(timeoffset*1000+(event.timestamp - timeoffset_start)/1000);			
 				
+				accelDataLock.unlock(); /* release data lock */
+				
 				Intent i = new Intent("PHONE_ACCEL_UPDATE");
 				Bundle b = new Bundle();
 				b.putString("x", Float.toString(event.values[0]));
@@ -116,10 +155,37 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				i.putExtras(b);
 				parentService.sendBroadcast(i);
 				
-				dataLock.unlock(); /* release data lock */
 				break;
 			case Sensor.TYPE_GYROSCOPE:
+				gyroDataLock.lock(); /* acquire data lock */
 				
+				gyrox.add(event.values[0]);
+				gyroy.add(event.values[1]);
+				gyroz.add(event.values[2]);
+				
+				Log.i(ActivityTrackerService.TAG, "Gyroscope received data of (" + 
+						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
+				
+				if (timeoffset == 0) {
+					timeoffset = (new Date()).getTime();
+					timeoffset_start = event.timestamp;
+				}
+				
+				/* build the timestamp using the nanotime stamp from the sensor and the
+				   offset from the RTC, keep the result in microseconds */
+				gyrot.add(timeoffset*1000+(event.timestamp - timeoffset_start)/1000);			
+				
+				gyroDataLock.unlock(); /* release data lock */
+				
+				Intent g = new Intent("PHONE_GYRO_UPDATE");
+				Bundle gb = new Bundle();
+				gb.putString("x", Float.toString(event.values[0]));
+				gb.putString("y", Float.toString(event.values[1]));
+				gb.putString("z", Float.toString(event.values[2]));
+				gb.putString("t", accelt.get(accelt.size() - 1).toString());
+				g.putExtras(gb);
+				parentService.sendBroadcast(g);
+
 				break;
 			case Sensor.TYPE_MAGNETIC_FIELD:
 				

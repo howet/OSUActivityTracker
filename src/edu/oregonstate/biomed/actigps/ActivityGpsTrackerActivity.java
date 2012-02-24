@@ -44,8 +44,8 @@ public class ActivityGpsTrackerActivity extends Activity {
         spec2.setIndicator("Settings");
         spec2.setContent(R.id.settingsTab);
         
-        tabHost.addTab(spec1);
         tabHost.addTab(spec2);
+        tabHost.addTab(spec1);
         
     	/* update the ui based on saved setting on start */
         updateSettings();
@@ -157,20 +157,30 @@ public class ActivityGpsTrackerActivity extends Activity {
 	
 	
 	public void onClickStartService(View v) {
-        doBindService();
-		startService(new Intent(this, ActivityTrackerService.class));
-		serviceRunning = true;
+		/* only create a new service if one did not already exist */
+		if(serviceRunning == false)
+		{
+	        doBindService();
+			startService(new Intent(this, ActivityTrackerService.class));
+			serviceRunning = true;
+		}
 	}
 	
 	public void onClickStopService(View v) {
-		try {
-			unbindService(mConnection);
+		/* only attempt to stop if the service was running */
+		if(serviceRunning == true)
+		{
+			try {
+				unbindService(mConnection);
+	    	}
+	    	catch (IllegalArgumentException ex) {
+	    		// catch if the receiver is not registered
+	    	}
+	    	
+	    	/* even if we were not bound to service, it might still be running, so kill it. */
 			stopService(new Intent(this, ActivityTrackerService.class));
 			serviceRunning = false;
-    	}
-    	catch (IllegalArgumentException ex) {
-    		// catch if the receiver is not registered
-    	}
+		}
 	}
 
 	
@@ -184,6 +194,10 @@ public class ActivityGpsTrackerActivity extends Activity {
 		boolean wifienabled = ((CheckBox)findViewById(R.id.chkbox_wifiscan)).isChecked();
 		boolean gpsenabled = ((CheckBox)findViewById(R.id.chkbox_gpsscan)).isChecked();
 		boolean accelenabled = ((CheckBox)findViewById(R.id.chkbox_accel)).isChecked();
+		boolean gyroenabled = ((CheckBox)findViewById(R.id.chkbox_gyro)).isChecked();
+		
+		/* get the text from the textbox, covert it to a positive int representing push interval */
+		int pushinterval = Math.abs(Integer.parseInt(((EditText)findViewById(R.id.txt_pushInterval)).getText().toString()));
 		
 		/* setup the new settings */
 	    SharedPreferences settings = getSharedPreferences(ActivityTrackerService.PREFS_NAME, 0);
@@ -201,6 +215,12 @@ public class ActivityGpsTrackerActivity extends Activity {
 	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, !accelenabled) != accelenabled)
 	    	editor.putBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, accelenabled);
 	    
+	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, !gyroenabled) != gyroenabled)
+	    	editor.putBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, gyroenabled);
+	    
+	    if(settings.getInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, -1) != pushinterval)
+	    	editor.putInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, pushinterval);
+	    
 	    /* commit changes to settings */
 	    editor.commit();
 	    
@@ -214,11 +234,17 @@ public class ActivityGpsTrackerActivity extends Activity {
 		boolean wifienabled = settings.getBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, true);
 		boolean gpsenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, true);
 		boolean accelenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, true);
+		boolean gyroenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, true);
+		int pushinterval = settings.getInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, 30);
 		
 		/* update the checked state of the checkboxes */
 		((CheckBox)findViewById(R.id.chkbox_wifiscan)).setChecked(wifienabled);
 		((CheckBox)findViewById(R.id.chkbox_gpsscan)).setChecked(gpsenabled);
 		((CheckBox)findViewById(R.id.chkbox_accel)).setChecked(accelenabled);
+		((CheckBox)findViewById(R.id.chkbox_gyro)).setChecked(gyroenabled);
+		
+		/* update textboxes */
+		((EditText)findViewById(R.id.txt_pushInterval)).setText(String.valueOf(pushinterval));
 	}
 	
 	private class DataUpdateReceiver extends BroadcastReceiver {
