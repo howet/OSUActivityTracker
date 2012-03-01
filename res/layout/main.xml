@@ -15,7 +15,51 @@
     android:id="@android:id/tabcontent"
      >
      
-     <LinearLayout
+     
+     
+		<LinearLayout
+		  xmlns:android="http://schemas.android.com/apk/res/android"
+		  android:layout_width="match_parent"
+	      android:layout_height="wrap_content"
+		  android:id="@+id/dataTab"
+		  android:orientation="vertical"
+		  android:paddingTop="70dp">
+		  
+			<TextView
+			        android:layout_width="fill_parent"
+			        android:layout_height="wrap_content"
+			        android:text="@string/hello" />
+			    <LinearLayout android:layout_width="match_parent" android:id="@+id/linearLayout1" android:layout_height="wrap_content" android:layout_gravity="center">
+			        <Button android:text="Start Service" android:layout_height="wrap_content" android:id="@+id/button1" android:onClick="onClickStartService" android:layout_width="wrap_content" android:layout_weight="1"></Button>
+			        <Button android:text="Stop Service" android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/button3" android:onClick="onClickStopService" android:layout_gravity="right" android:layout_weight="1"></Button>
+			    </LinearLayout>
+			    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/text_current_timestamp" android:text="@string/time_title" android:textStyle="bold"></TextView>
+			    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/time_data" android:text="10239120312"></TextView>
+			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/accel_title" android:text="@string/accel_title" android:textStyle="bold"></TextView>
+			
+			<TextView
+			    android:id="@+id/accel_data"
+			    android:layout_width="fill_parent"
+			    android:layout_height="wrap_content"
+			    android:text="@string/HelloX" />
+			<TextView android:fitsSystemWindows="true" android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="@string/gps_title" android:id="@+id/gps_title" android:textStyle="bold"></TextView>
+			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/gps_data" android:text="@string/HelloX"></TextView>
+			
+			<TextView android:fitsSystemWindows="true" android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="@string/gyro_title" android:id="@+id/gyro_title" android:textStyle="bold"></TextView>
+			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="@string/HelloX" android:id="@+id/gyro_data"></TextView>
+			
+			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/id_title" android:textStyle="bold" android:text="Patient ID"></TextView>
+			<EditText
+			    android:id="@+id/patientId"
+			    android:layout_width="match_parent"
+			    android:layout_height="wrap_content"
+			    android:inputType="number"
+			    android:singleLine="true" >
+			</EditText>
+		  
+		</LinearLayout>
+	     
+		<LinearLayout
             xmlns:android="http://schemas.android.com/apk/res/android"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -52,49 +96,6 @@
             
             <Button android:layout_height="wrap_content" android:text="@string/commitsettings" android:layout_width="wrap_content" android:layout_gravity="center" android:id="@+id/button_commitSettings" android:onClick="onClickCommitSettings" android:layout_weight="1"></Button>
         </LinearLayout>
-     
-		<LinearLayout
-		  xmlns:android="http://schemas.android.com/apk/res/android"
-		  android:layout_width="match_parent"
-	      android:layout_height="wrap_content"
-		  android:id="@+id/dataTab"
-		  android:orientation="vertical"
-		  android:paddingTop="70dp">
-		  
-			<TextView
-			        android:layout_width="fill_parent"
-			        android:layout_height="wrap_content"
-			        android:text="@string/hello" />
-			    <LinearLayout android:layout_width="match_parent" android:id="@+id/linearLayout1" android:layout_height="wrap_content" android:layout_gravity="center">
-			        <Button android:text="Start Service" android:layout_height="wrap_content" android:id="@+id/button1" android:onClick="onClickStartService" android:layout_width="wrap_content" android:layout_weight="1"></Button>
-			        <Button android:text="Stop Service" android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/button3" android:onClick="onClickStopService" android:layout_gravity="right" android:layout_weight="1"></Button>
-			    </LinearLayout>
-			    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/text_current_timestamp" android:text="@string/time_title" android:textStyle="bold"></TextView>
-			    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/time_data" android:text="10239120312"></TextView>
-			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/accel_title" android:text="@string/accel_title" android:textStyle="bold"></TextView>
-			
-			<TextView
-			    android:id="@+id/accel_data"
-			    android:layout_width="fill_parent"
-			    android:layout_height="wrap_content"
-			    android:text="@string/HelloX" />
-			<TextView android:fitsSystemWindows="true" android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="@string/gps_title" android:id="@+id/gps_title" android:textStyle="bold"></TextView>
-			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/gps_data" android:text="@string/HelloX"></TextView>
-			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/id_title" android:textStyle="bold" android:text="Patient ID"></TextView>
-			
-			   
-			
-			<EditText
-			    android:id="@+id/patientId"
-			    android:layout_width="match_parent"
-			    android:layout_height="wrap_content"
-			    android:inputType="number"
-			    android:singleLine="true" >
-			</EditText>
-		  
-		</LinearLayout>
-	     
-		
      
      </FrameLayout>
     

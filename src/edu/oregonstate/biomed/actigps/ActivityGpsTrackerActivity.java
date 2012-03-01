@@ -1,6 +1,8 @@
 package edu.oregonstate.biomed.actigps;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningServiceInfo;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -23,8 +25,6 @@ import android.widget.Toast;
 public class ActivityGpsTrackerActivity extends Activity {
     /** Called when the activity is first created. */
 	private DataUpdateReceiver dataUpdateReceiver;
-	private boolean serviceRunning;
-	
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -44,15 +44,11 @@ public class ActivityGpsTrackerActivity extends Activity {
         spec2.setIndicator("Settings");
         spec2.setContent(R.id.settingsTab);
         
-        tabHost.addTab(spec2);
         tabHost.addTab(spec1);
+        tabHost.addTab(spec2);
         
     	/* update the ui based on saved setting on start */
-        updateSettings();
-        
-        /* we have not started the service yet */
-        serviceRunning = false;
-        
+        updateSettings();        
         
         final EditText patientIdEdit = (EditText)findViewById(R.id.patientId);
         
@@ -96,6 +92,8 @@ public class ActivityGpsTrackerActivity extends Activity {
     	IntentFilter intentFilter = new IntentFilter("PHONE_ACCEL_UPDATE");
     	registerReceiver(dataUpdateReceiver, intentFilter);
     	intentFilter = new IntentFilter("PHONE_GPS_UPDATE");
+    	registerReceiver(dataUpdateReceiver, intentFilter);
+    	intentFilter = new IntentFilter("PHONE_GYRO_UPDATE");
     	registerReceiver(dataUpdateReceiver, intentFilter);
     	
     	Toast.makeText(ActivityGpsTrackerActivity.this, "Resumed",
@@ -154,21 +152,28 @@ public class ActivityGpsTrackerActivity extends Activity {
 				Context.BIND_AUTO_CREATE);
 	}
 	
+	private boolean isMyServiceRunning() {
+	    ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+	    for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+	        if (ActivityTrackerService.class.getName().equals(service.service.getClassName())) {
+	            return true;
+	        }
+	    }
+	    return false;
+	}
 	
 	
 	public void onClickStartService(View v) {
 		/* only create a new service if one did not already exist */
-		if(serviceRunning == false)
+		if(isMyServiceRunning() == false)
 		{
 	        doBindService();
 			startService(new Intent(this, ActivityTrackerService.class));
-			serviceRunning = true;
 		}
 	}
 	
 	public void onClickStopService(View v) {
-		/* only attempt to stop if the service was running */
-		if(serviceRunning == true)
+		if(isMyServiceRunning())
 		{
 			try {
 				unbindService(mConnection);
@@ -179,14 +184,13 @@ public class ActivityGpsTrackerActivity extends Activity {
 	    	
 	    	/* even if we were not bound to service, it might still be running, so kill it. */
 			stopService(new Intent(this, ActivityTrackerService.class));
-			serviceRunning = false;
 		}
 	}
 
 	
 	public void onClickCommitSettings(View v) {
 		/* save service running state */
-		boolean wasRunning = serviceRunning;
+		boolean wasRunning = isMyServiceRunning();
 		
 		/* stop the current service before applying settings */
 		onClickStopService(v);
@@ -259,10 +263,16 @@ public class ActivityGpsTrackerActivity extends Activity {
 				txt.setText(s);
 				time.setText(t);
 			}
-			if (intent.getAction().equals("PHONE_GPS_UPDATE")) {
+			else if (intent.getAction().equals("PHONE_GPS_UPDATE")) {
 				Bundle data = intent.getExtras();
 				String s = data.getString("x")+","+data.getString("y");
 				TextView txt = (TextView) findViewById(R.id.gps_data);
+				txt.setText(s);
+			}
+			else if (intent.getAction().equals("PHONE_GYRO_UPDATE")) {
+				Bundle data = intent.getExtras();
+				String s = data.getString("x")+","+data.getString("y")+","+data.getString("z");
+				TextView txt = (TextView) findViewById(R.id.gyro_data);
 				txt.setText(s);
 			}
 		}

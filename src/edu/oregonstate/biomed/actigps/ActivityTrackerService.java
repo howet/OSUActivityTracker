@@ -92,7 +92,7 @@ public class ActivityTrackerService extends Service {
 	@Override
 	public void onStart(Intent intent, int startid) {
 		Log.i(TAG, "Starting Activity Tracker Service.");
-
+		
 		/* restore preferences */
 		SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
 		wifi_enable = settings.getBoolean(SETTINGS_WIFI_ENABLE_KEY, true);
@@ -105,6 +105,10 @@ public class ActivityTrackerService extends Service {
 		sensors = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
 		wifi = (WifiManager)getSystemService(Context.WIFI_SERVICE);
 		location = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
+		
+		
+		/* enable all the necessary hardware */
+		wifi.setWifiEnabled(true);
 		
 		mSensorRcvr = new SensorReceiver(this);	
 		
@@ -135,28 +139,39 @@ public class ActivityTrackerService extends Service {
             public void run() {
     			String data = "";
     			
+    			/* number of times we have failed to post to server */
+    			int post_fails = 0;
+    			
     			Log.d(TAG, "Posting accelerometer/gyro data");
     			data = mSensorRcvr.getDataString();
     			
-    			if(data.length() > 0 &&	doHttpPost(data))
+    			if(doHttpPost(data))
     				mSensorRcvr.clearData(); /* clear all the data we just received */
+    			else
+    				post_fails++;
     			
     			data = "";
     			
     			Log.d(TAG, "Posting rssi data");
     			data = mWifiRcvr.getDataString();
     			
-    			if(data.length() > 0 && doHttpPost(data))
+    			if(doHttpPost(data))
     				mSensorRcvr.clearData(); /* clear all the data we just received */
+    			else
+    				post_fails++;
     			
     			data = "";
     			
     			Log.d(TAG, "Posting GPS data");
     			data = mGpsRcvr.getDataString();
     			
-    			if(data.length() > 0 && doHttpPost(data))
+    			if(doHttpPost(data))
     				mGpsRcvr.clearData(); /* clear all the data we just received */
-
+    			else
+    				post_fails++;
+    			
+    			if(post_fails > 1)
+    				postNotification("Data Post Fail. Check Network Connection.");
              }
           }, POST_PERIOD*1000, POST_PERIOD*1000);
 	}
@@ -198,12 +213,14 @@ public class ActivityTrackerService extends Service {
 		notification.flags |= Notification.FLAG_AUTO_CANCEL;
 		notification.defaults |= (Notification.DEFAULT_LIGHTS | Notification.DEFAULT_VIBRATE);
 		
-		
 		NotificationManager mNotify = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 		mNotify.notify(0, notification);
 	}
 	
 	private boolean doHttpPost(String data) {			
+		
+		if(data.length() == 0)
+			return true;
 		
 		String domain = "Chunk1";
 

@@ -12,4 +12,5 @@
     <string name="gpscheckbox">Enable GPS Tracking</string>
     <string name="accelcheckbox">Enable Accelerometer Logging</string>
     <string name="gyrocheckbox">Enable Gyroscope Logging</string>
+    <string name="gyro_title">Gyro Data</string>
 </resources>

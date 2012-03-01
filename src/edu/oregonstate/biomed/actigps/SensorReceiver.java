@@ -39,6 +39,9 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	private final UUID yUUID = UUID.fromString("1fc8a314-ca47-4376-8aa4-bf77237dd809");
 	private final UUID zUUID = UUID.fromString("b792a01e-94e7-4a14-bdff-a5d82a893802");
 	
+	/* only send the broadcast every so often, to limit UI updates */
+	private int broadcast_count;
+	
 	private long timeoffset = 0;
 	private long timeoffset_start = 0;
 	
@@ -46,6 +49,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	{
 		parentService = serv;
 		mSensorManager = serv.sensors;
+		broadcast_count = 0;
 	}
 	
 	
@@ -124,6 +128,7 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 	@Override
 	public void onSensorChanged(SensorEvent event)
 	{
+		Long newtime;
 		switch (event.sensor.getType()) {
 			case Sensor.TYPE_ACCELEROMETER:
 				accelDataLock.lock(); /* acquire data lock */
@@ -142,18 +147,12 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				
 				/* build the timestamp using the nanotime stamp from the sensor and the
 				   offset from the RTC, keep the result in microseconds */
-				accelt.add(timeoffset*1000+(event.timestamp - timeoffset_start)/1000);			
+				newtime = timeoffset*1000+(event.timestamp - timeoffset_start)/1000;
+				accelt.add(newtime);			
 				
 				accelDataLock.unlock(); /* release data lock */
 				
-				Intent i = new Intent("PHONE_ACCEL_UPDATE");
-				Bundle b = new Bundle();
-				b.putString("x", Float.toString(event.values[0]));
-				b.putString("y", Float.toString(event.values[1]));
-				b.putString("z", Float.toString(event.values[2]));
-				b.putString("t", accelt.get(accelt.size() - 1).toString());
-				i.putExtras(b);
-				parentService.sendBroadcast(i);
+				sendBroadcast("PHONE_ACCEL_UPDATE", event, newtime);
 				
 				break;
 			case Sensor.TYPE_GYROSCOPE:
@@ -163,8 +162,8 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				gyroy.add(event.values[1]);
 				gyroz.add(event.values[2]);
 				
-				Log.i(ActivityTrackerService.TAG, "Gyroscope received data of (" + 
-						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
+//				Log.i(ActivityTrackerService.TAG, "Gyroscope received data of (" + 
+//						event.values[0] + "," + event.values[1] + "," + event.values[2] + ")");
 				
 				if (timeoffset == 0) {
 					timeoffset = (new Date()).getTime();
@@ -173,24 +172,40 @@ public class SensorReceiver implements SensorEventListener, ActivitySensor
 				
 				/* build the timestamp using the nanotime stamp from the sensor and the
 				   offset from the RTC, keep the result in microseconds */
-				gyrot.add(timeoffset*1000+(event.timestamp - timeoffset_start)/1000);			
+				newtime = timeoffset*1000+(event.timestamp - timeoffset_start)/1000;
+				gyrot.add(newtime);			
 				
 				gyroDataLock.unlock(); /* release data lock */
 				
-				Intent g = new Intent("PHONE_GYRO_UPDATE");
-				Bundle gb = new Bundle();
-				gb.putString("x", Float.toString(event.values[0]));
-				gb.putString("y", Float.toString(event.values[1]));
-				gb.putString("z", Float.toString(event.values[2]));
-				gb.putString("t", accelt.get(accelt.size() - 1).toString());
-				g.putExtras(gb);
-				parentService.sendBroadcast(g);
+				sendBroadcast("PHONE_GYRO_UPDATE", event, newtime);
 
 				break;
 			case Sensor.TYPE_MAGNETIC_FIELD:
 				
 				break;
 			}
+	}
+	
+	private void sendBroadcast(String intentname, SensorEvent event, Long time)
+	{
+		/* update UI every 16 data points */
+		if(broadcast_count < 8)
+		{
+			broadcast_count++;
+		}
+		else
+		{
+			broadcast_count = 0;
+			
+			Intent i = new Intent(intentname);
+			Bundle b = new Bundle();
+			b.putString("x", Float.toString(event.values[0]));
+			b.putString("y", Float.toString(event.values[1]));
+			b.putString("z", Float.toString(event.values[2]));
+			b.putString("t", time.toString());
+			i.putExtras(b);
+			parentService.sendBroadcast(i);
+		}
 	}
 
 	@Override
