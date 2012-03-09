@@ -47,16 +47,15 @@
 			
 			<TextView android:fitsSystemWindows="true" android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="@string/gyro_title" android:id="@+id/gyro_title" android:textStyle="bold"></TextView>
 			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="@string/HelloX" android:id="@+id/gyro_data"></TextView>
-			
-			<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/id_title" android:textStyle="bold" android:text="Patient ID"></TextView>
-			<EditText
-			    android:id="@+id/patientId"
-			    android:layout_width="match_parent"
-			    android:layout_height="wrap_content"
-			    android:inputType="number"
-			    android:singleLine="true" >
-			</EditText>
-		  
+		    
+		    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/id_title" android:textStyle="bold" android:text="Patient ID"></TextView>
+            <EditText
+                android:id="@+id/patientId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:singleLine="true" >
+            </EditText>
 		</LinearLayout>
 	     
 		<LinearLayout

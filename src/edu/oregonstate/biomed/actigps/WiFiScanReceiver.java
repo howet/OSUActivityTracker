@@ -5,7 +5,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.http.message.BasicNameValuePair;
@@ -23,9 +22,7 @@ import android.util.Log;
  */
 public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySensor {
 
-	private static final int SCAN_PERIOD = 6; /* scan every 6 seconds */
-	private static final UUID rssiUUID = UUID.fromString("e74dce41-c487-42aa-915b-e59e4864b4ee");
-	
+	private static final int SCAN_PERIOD = 6; /* scan every 6 seconds */	
 	private ReentrantLock dataLock = new ReentrantLock();
 	
 	private ArrayList<BasicNameValuePair> rssiVals = null;
@@ -34,6 +31,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	private Timer scanTimer = null;
 	
 	private boolean isScanning;
+	private boolean isRegistered;
 	
 	private WifiManager mWifiManager = null;
 	private ActivityTrackerService parentService;
@@ -47,7 +45,10 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		parentService = serv;
 		mWifiManager = serv.wifi;
 		
+		/* wifi scan timer */
+		scanTimer = new Timer();
 		isScanning = false;
+		isRegistered = false;
 		
 		rssiVals = new ArrayList<BasicNameValuePair>();
 		rssiTimes = new ArrayList<Long>();
@@ -64,6 +65,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		
 		/* start wifi scan timer */
 		scanTimer = new Timer();
+		isRegistered = true;
 		
 		/* initiate a new scan every X seconds */
 		scanTimer.scheduleAtFixedRate( new TimerTask() {
@@ -100,9 +102,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	@SuppressWarnings("unchecked")
 	@Override
 	public String getDataString()
-	{
-		final int pid = parentService.getPatientId();
-		
+	{		
 		dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
 		
 		ArrayList<BasicNameValuePair> r = (ArrayList<BasicNameValuePair>) rssiVals.clone();
@@ -110,7 +110,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		
 		dataLock.unlock(); /* release data lock */
 		
-		return buildDataString(r, t, rssiUUID, pid);
+		return buildDataString(r, t);
 	}
 
 	@Override
@@ -128,18 +128,20 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	public void unregister()
 	{
 		scanTimer.cancel();
-		parentService.unregisterReceiver(this);
+		
+		if(isRegistered == true)
+			parentService.unregisterReceiver(this);
+		
+		isRegistered = false;
 	}
 	
 	/**
 	 * Create a string for the HTTP post based on data, uuid, pid, and timestamps
 	 * @param list raw rssi data
-	 * @param u uuid of sensor
-	 * @param pid patient ID
 	 * @param times array of timestamps matching data
 	 * @return formatted string
 	 */
-	private String buildDataString(ArrayList<BasicNameValuePair> list, ArrayList<Long> times, UUID u, int pid) {
+	private String buildDataString(ArrayList<BasicNameValuePair> list, ArrayList<Long> times) {
 		StringBuilder data = new StringBuilder();
 		for(int i = 0; i < list.size(); i++)
 		{
@@ -149,7 +151,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 			if( times.size() > i )
 			{
 				time = times.get(i);
-				data.append(time/1000 + " " + pid + " " + u + " " + val + "\r\n");
+				data.append(String.format("%d:%s\r\n", time, val));
 			}
 			else
 			{
@@ -159,5 +161,12 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		}
 		
 		return data.toString();
+	}
+
+
+	@Override
+	public String getChannelName()
+	{
+		return "WiFi_Data";
 	}
 }

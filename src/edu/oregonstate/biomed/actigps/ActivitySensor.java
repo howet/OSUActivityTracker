@@ -17,7 +17,18 @@ public interface ActivitySensor
 	public abstract void clearData();
 	
 	/**
+	 * Registers the receiver for data receipt
+	 */
+	public abstract void register();
+	
+	/**
 	 * Unregister all associated sensors
 	 */
 	public abstract void unregister();
+	
+	/**
+	 * retrieve the channel name for this sensor
+	 * @return The name of the channel
+	 */
+	public String getChannelName();
 }
