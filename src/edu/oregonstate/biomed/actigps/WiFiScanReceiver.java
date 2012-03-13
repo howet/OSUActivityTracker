@@ -28,6 +28,9 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	private ArrayList<BasicNameValuePair> rssiVals = null;
 	private ArrayList<Long> rssiTimes = null;
 	
+	private ArrayList<BasicNameValuePair> prevVals = null;
+	private ArrayList<Long> prevTimes = null;
+	
 	private Timer scanTimer = null;
 	
 	private boolean isScanning;
@@ -105,23 +108,30 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	{		
 		dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
 		
-		ArrayList<BasicNameValuePair> r = (ArrayList<BasicNameValuePair>) rssiVals.clone();
-		ArrayList<Long> t = (ArrayList<Long>) rssiTimes.clone();
+		prevVals = (ArrayList<BasicNameValuePair>) rssiVals.clone();
+		prevTimes = (ArrayList<Long>) rssiTimes.clone();
+		
+		/* clear data up to this point */
+		rssiVals.clear();
+		rssiTimes.clear();
 		
 		dataLock.unlock(); /* release data lock */
 		
-		return buildDataString(r, t);
+		return buildDataString(prevVals, prevTimes);
 	}
 
 	@Override
 	public void clearData()
 	{
-		dataLock.lock(); /* acquire data lock */
+		if( prevVals != null )
+			prevVals.clear();
+		if( prevTimes != null )
+			prevTimes.clear();
 		
-		rssiVals.clear();
-		rssiTimes.clear();
-		
-		dataLock.unlock(); /* release data lock */
+		/* since we are clearing, that probably means we won't have any problems for awhile, 
+		 * so we can GC the ArrayLists */
+		prevVals = null;
+		prevTimes = null;
 	}
 
 	@Override
@@ -136,7 +146,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	}
 	
 	/**
-	 * Create a string for the HTTP post based on data, uuid, pid, and timestamps
+	 * Create a string for the HTTP post based on data and timestamps
 	 * @param list raw rssi data
 	 * @param times array of timestamps matching data
 	 * @return formatted string
@@ -168,5 +178,23 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	public String getChannelName()
 	{
 		return "WiFi_Data";
+	}
+
+
+	@Override
+	public void restoreData()
+	{
+		dataLock.lock(); /* acquire data lock */
+		
+		/* restore the previously fetched data */
+		if( prevVals != null )
+			rssiVals.addAll(prevVals);
+		if( prevTimes != null )
+			rssiTimes.addAll(prevTimes);
+		
+		dataLock.unlock(); /* release data lock */
+		
+		prevVals = null;
+		prevTimes = null;
 	}
 }
