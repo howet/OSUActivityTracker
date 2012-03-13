@@ -30,6 +30,7 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.params.ConnManagerParams;
+import org.apache.http.conn.params.ConnPerRouteBean;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
@@ -98,7 +99,13 @@ public class ActivityTrackerService extends Service {
 		mGpsRcvr.unregister();
 		mGyroRcvr.unregister();
 		
+		mAccelRcvr = null;
+		mWifiRcvr = null;
+		mGpsRcvr = null;
+		mGyroRcvr = null;
+		
 		mBackgroundTimer.cancel();
+		mBackgroundTimer = null;
 		
 		Log.i(TAG, "Stopped Activity Tracker Service.");
 		Toast.makeText(this, "Destroyed service", Toast.LENGTH_LONG).show();
@@ -108,25 +115,28 @@ public class ActivityTrackerService extends Service {
 	public void onStart(Intent intent, int startid) {
 		Log.i(TAG, "Starting Activity Tracker Service.");
 		
-		HttpParams params = new BasicHttpParams();
-        ConnManagerParams.setMaxTotalConnections(params, 100);
-        ConnManagerParams.setTimeout(params, 30000);
-        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
-        
-        
-        // Create and initialize scheme registry 
-        SchemeRegistry schemeRegistry = new SchemeRegistry();
-        schemeRegistry.register(
-                new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-        
-        // Create an HttpClient with the ThreadSafeClientConnManager.
-        // This connection manager must be used if more than one thread will
-        // be using the HttpClient.
-        ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
+		/* create connection manager to handle multiple connections from different threads */
+		{
+			HttpParams params = new BasicHttpParams();
+	        ConnManagerParams.setMaxTotalConnections(params, 100);
+	        ConnManagerParams.setMaxConnectionsPerRoute(params, new ConnPerRouteBean(5));
+	        ConnManagerParams.setTimeout(params, 60000);
+	        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
 
-        /* create new httpclient object with thread safe conn manager */
-        mHttpClient = new DefaultHttpClient(cm, params);
-        
+	        // Create and initialize scheme registry 
+	        SchemeRegistry schemeRegistry = new SchemeRegistry();
+	        schemeRegistry.register(
+	                new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+	        
+	        // Create an HttpClient with the ThreadSafeClientConnManager.
+	        // This connection manager must be used if more than one thread will
+	        // be using the HttpClient.
+	        ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
+	
+	        /* create new httpclient object with thread safe conn manager */
+	        mHttpClient = new DefaultHttpClient(cm, params);
+		}
+		
 		/* restore preferences */
 		SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
 		wifi_enable = settings.getBoolean(SETTINGS_WIFI_ENABLE_KEY, true);
@@ -184,11 +194,8 @@ public class ActivityTrackerService extends Service {
               	/* run accelerometer and gyro on own threads: these take awhile */
               	Log.d(TAG, "Starting HTTP Posts.");
               	
-      			new HttpPostTask().execute(mAccelRcvr);
-      			new HttpPostTask().execute(mGyroRcvr);
-      			
-      			/* run other sensors on this thread */
-      			new HttpPostTask().execute(mWifiRcvr, mGpsRcvr);
+      			new HttpPostTask().execute(mAccelRcvr,mGpsRcvr);
+      			new HttpPostTask().execute(mGyroRcvr,mWifiRcvr);
               }
            });
          }
@@ -234,7 +241,8 @@ public class ActivityTrackerService extends Service {
 			boolean result = true;
 			 
 			for (int i = 0; i < count; i++) {
-				result = result && doHttpPost(sensors[i]);
+				boolean newres = doHttpPost(sensors[i]);
+				result = result && newres;
 			}
 			return result;
 		}
@@ -253,14 +261,20 @@ public class ActivityTrackerService extends Service {
 		String channel = sensor.getChannelName();
 		boolean success = false;
 		
+		postcount++;
+		String id = String.valueOf(postcount);
+		
+		Log.i(TAG, id + " Trying to post " + channel + " of length: " + data.length());
+		
 		/* if there was no data, just report that we posted successfully */
 		if(data.length() == 0)
+		{
+			Log.d(TAG, id + " No data to post.");
 			success = true;
+		}
 		else
 		{
-			postcount++;
-			Log.i(TAG, postcount + " Trying to post " + channel + " of length: " + data.length());
-			
+			success = false;
 			HttpPost httppost = new HttpPost(UPLOAD_URL);
 			
 			try {
@@ -272,23 +286,21 @@ public class ActivityTrackerService extends Service {
 				httppost.setEntity(new UrlEncodedFormEntity(nvp));
 				
 				HttpResponse r = mHttpClient.execute(httppost);
-				Log.d(TAG, postcount + " Http response: " + r.getStatusLine().toString());
+				Log.d(TAG, id + " Http response: " + r.getStatusLine().toString());
 				
 				if( r.getStatusLine().toString().contains("200 OK"))
 					success = true;
+				
+				/* clear the data if we successfully posted, otherwise restore it to data list and post later */
+				if(success)
+					sensor.clearData();
 				else
-					success = false;
+					sensor.restoreData();
 			}
 			catch (IOException e) {
-				Log.e(TAG, "Exception Occurred on HTTP post: " + e.toString());
-				success = false;
+				Log.e(TAG, id + " Exception Occurred on HTTP post: " + e.toString());
 			}
 		}
-		
-		if(success)
-			sensor.clearData();
-		else
-			sensor.restoreData();
 		
 		return success;
 	}

@@ -36,6 +36,12 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	private boolean isScanning;
 	private boolean isRegistered;
 	
+	/* 
+	 * boolean to keep track of if data is currently being posted,
+	 * which would require a clearData or restoreData call.
+	 */
+	private boolean dataPosting;
+	
 	private WifiManager mWifiManager = null;
 	private ActivityTrackerService parentService;
 	
@@ -52,6 +58,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		scanTimer = new Timer();
 		isScanning = false;
 		isRegistered = false;
+		dataPosting = false;
 		
 		rssiVals = new ArrayList<BasicNameValuePair>();
 		rssiTimes = new ArrayList<Long>();
@@ -105,19 +112,27 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	@SuppressWarnings("unchecked")
 	@Override
 	public String getDataString()
-	{		
-		dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
-		
-		prevVals = (ArrayList<BasicNameValuePair>) rssiVals.clone();
-		prevTimes = (ArrayList<Long>) rssiTimes.clone();
-		
-		/* clear data up to this point */
-		rssiVals.clear();
-		rssiTimes.clear();
-		
-		dataLock.unlock(); /* release data lock */
-		
-		return buildDataString(prevVals, prevTimes);
+	{
+		/* return nothing if we are waiting for a data post */
+		if( dataPosting == false )
+		{
+			dataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
+			
+			prevVals = (ArrayList<BasicNameValuePair>) rssiVals.clone();
+			prevTimes = (ArrayList<Long>) rssiTimes.clone();
+			
+			/* clear data up to this point */
+			rssiVals.clear();
+			rssiTimes.clear();
+			
+			if(prevVals.size() > 0)
+				dataPosting = true;
+			
+			dataLock.unlock(); /* release data lock */
+
+			return buildDataString(prevVals, prevTimes);
+		}
+		return "";
 	}
 
 	@Override
@@ -132,6 +147,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		 * so we can GC the ArrayLists */
 		prevVals = null;
 		prevTimes = null;
+		dataPosting = false;
 	}
 
 	@Override
@@ -196,5 +212,7 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 		
 		prevVals = null;
 		prevTimes = null;
+		
+		dataPosting = false;
 	}
 }
