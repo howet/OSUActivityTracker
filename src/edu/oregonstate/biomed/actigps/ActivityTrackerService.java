@@ -1,10 +1,13 @@
 package edu.oregonstate.biomed.actigps;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import android.app.Notification;
@@ -163,8 +166,7 @@ public class ActivityTrackerService extends Service {
               public void run() {
               	/* run accelerometer and gyro on own threads: these take awhile */
               	Log.d(TAG, "Starting HTTP Posts.");
-              	
-              	new HttpGetTask().execute(20);
+
       			new HttpPostTask().execute(mAccelRcvr,mGpsRcvr);
       			new HttpPostTask().execute(mGyroRcvr,mWifiRcvr);
               }
@@ -235,21 +237,7 @@ public class ActivityTrackerService extends Service {
 	    return activeNetworkInfo != null;
 	}
 	
-	/* create an async task to handle queuing of HTTP GETs on separate threads */
-	private class HttpGetTask extends AsyncTask<Integer, Integer, ArrayList<SensorVal>> {
-		protected ArrayList<SensorVal> doInBackground(Integer... limit) {
-			int count = limit.length;
-			
-			if(count == 0)
-				return new ArrayList<SensorVal>();
 
-			return doHttpGetAccelData(limit[0]);
-		}
-		 
-		protected void onPostExecute(ArrayList<SensorVal> result) {
-			//TODO: graph the data received
-		}
-	}
 	
 	private int postcount = 0;
 	
@@ -304,48 +292,5 @@ public class ActivityTrackerService extends Service {
 		
 		return success;
 	}
-	
-	
-	/**
-	 * Perform the HTTP Get routine and return 
-	 * @param sensorname
-	 * @param since
-	 * @return
-	 */
-	private ArrayList<SensorVal> doHttpGetAccelData(int limit) {			
 
-		boolean success = false;
-		ArrayList<SensorVal> fetchedData = new ArrayList<SensorVal>();
-		
-		Log.i(TAG, "Trying to get accel data");
-		
-		String query = "user=" + UPLOAD_UID + "&channel=WiFi_Data&limit=" + limit;
-		
-		HttpGet httpget;
-		try
-		{
-			httpget = new HttpGet(new URI("http", DOWNLOAD_HOST, DOWNLOAD_PATH, query, null));
-		} catch (URISyntaxException e1)
-		{
-			return fetchedData;
-		}
-
-		
-		try {
-	
-			HttpClient client = HttpClientFactory.getThreadSafeClient();
-			HttpResponse r = client.execute(httpget);
-			
-			Log.d(TAG, "Http response: " + r.getStatusLine().toString());
-			
-			if( r.getStatusLine().toString().contains("200 OK"))
-				success = true;
-		}
-		catch (IOException e) 
-		{
-			Log.e(TAG, "Exception Occurred on HTTP post: " + e.toString());
-		}
-		
-		return fetchedData;
-	}
 }

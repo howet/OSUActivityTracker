@@ -15,7 +15,23 @@
     android:id="@android:id/tabcontent"
      >
      
-     
+         <LinearLayout
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/visualTab"
+            android:orientation="vertical"
+            android:paddingTop="70dp">
+          
+                <com.androidplot.xy.XYPlot
+			    android:id="@+id/mySimpleXYPlot"
+			    android:layout_width="fill_parent"
+			    android:layout_height="300dp"
+			    android:layout_marginTop="10px"
+			    android:layout_marginLeft="10px"
+			    android:layout_marginRight="10px"
+			    title="Activity History"/>
+        </LinearLayout>
      
 		<LinearLayout
 		  xmlns:android="http://schemas.android.com/apk/res/android"
