@@ -46,7 +46,8 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	{
 		mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 		
-		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
+		/* change this back to DELAY_GAME when server can handle it */
+		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
 	}
 	
 	
@@ -120,8 +121,8 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	
 	private void sendBroadcast(SensorVal event)
 	{
-		/* update UI every 16 data points */
-		if(broadcast_count < 8)
+		/* update UI every 4 data points */
+		if(broadcast_count < 4)
 		{
 			broadcast_count++;
 		}

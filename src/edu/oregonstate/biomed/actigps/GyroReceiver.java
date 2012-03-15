@@ -49,7 +49,8 @@ public class GyroReceiver implements ActivitySensor, SensorEventListener
 	{
 		mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 		
-		mSensorManager.registerListener(this, mGyroscope, SensorManager.SENSOR_DELAY_GAME);
+		/* change this back to DELAY_GAME when server can handle it */
+		mSensorManager.registerListener(this, mGyroscope, SensorManager.SENSOR_DELAY_NORMAL);
 		isRegistered = true;
 	}
 	
@@ -122,8 +123,8 @@ public class GyroReceiver implements ActivitySensor, SensorEventListener
 	
 	private void sendBroadcast(SensorVal event)
 	{
-		/* update UI every 16 data points */
-		if(broadcast_count < 8)
+		/* update UI every 4 data points */
+		if(broadcast_count < 4)
 		{
 			broadcast_count++;
 		}

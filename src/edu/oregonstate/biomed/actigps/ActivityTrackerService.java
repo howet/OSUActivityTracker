@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -14,6 +16,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Binder;
@@ -24,22 +28,11 @@ import android.util.Log;
 import android.widget.Toast;
 
 import org.apache.http.HttpResponse;
-import org.apache.http.HttpVersion;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.conn.ClientConnectionManager;
-import org.apache.http.conn.params.ConnManagerParams;
-import org.apache.http.conn.params.ConnPerRouteBean;
-import org.apache.http.conn.scheme.PlainSocketFactory;
-import org.apache.http.conn.scheme.Scheme;
-import org.apache.http.conn.scheme.SchemeRegistry;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.params.HttpProtocolParams;
 
 public class ActivityTrackerService extends Service {
 	
@@ -55,6 +48,8 @@ public class ActivityTrackerService extends Service {
 	public static final String PREFS_NAME = "OSUActivityTrackerPrefs";
 	public static final String TAG = "ActTracker";
 	public static final String UPLOAD_URL =  "http://dataserv3.elasticbeanstalk.com/upload";
+	public static final String DOWNLOAD_HOST =  "dataserv3.elasticbeanstalk.com";
+	public static final String DOWNLOAD_PATH = "/download";
 	
 	private int POST_PERIOD; /* how often to post data to server */
 	
@@ -62,9 +57,6 @@ public class ActivityTrackerService extends Service {
 	SensorManager sensors;
 	LocationManager location;
 	WifiManager wifi;
-
-	/* HTTP Client */
-	HttpClient mHttpClient;
 	
 	/* sensor enable flags */
 	private boolean accel_enable;
@@ -114,28 +106,6 @@ public class ActivityTrackerService extends Service {
 	@Override
 	public void onStart(Intent intent, int startid) {
 		Log.i(TAG, "Starting Activity Tracker Service.");
-		
-		/* create connection manager to handle multiple connections from different threads */
-		{
-			HttpParams params = new BasicHttpParams();
-	        ConnManagerParams.setMaxTotalConnections(params, 100);
-	        ConnManagerParams.setMaxConnectionsPerRoute(params, new ConnPerRouteBean(5));
-	        ConnManagerParams.setTimeout(params, 60000);
-	        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
-
-	        // Create and initialize scheme registry 
-	        SchemeRegistry schemeRegistry = new SchemeRegistry();
-	        schemeRegistry.register(
-	                new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-	        
-	        // Create an HttpClient with the ThreadSafeClientConnManager.
-	        // This connection manager must be used if more than one thread will
-	        // be using the HttpClient.
-	        ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
-	
-	        /* create new httpclient object with thread safe conn manager */
-	        mHttpClient = new DefaultHttpClient(cm, params);
-		}
 		
 		/* restore preferences */
 		SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
@@ -194,6 +164,7 @@ public class ActivityTrackerService extends Service {
               	/* run accelerometer and gyro on own threads: these take awhile */
               	Log.d(TAG, "Starting HTTP Posts.");
               	
+              	new HttpGetTask().execute(20);
       			new HttpPostTask().execute(mAccelRcvr,mGpsRcvr);
       			new HttpPostTask().execute(mGyroRcvr,mWifiRcvr);
               }
@@ -234,6 +205,10 @@ public class ActivityTrackerService extends Service {
 		mNotify.notify(0, notification);
 	}
 	
+	/*----------------------------------------
+	 * HTTP Stuff Below Here
+	 *---------------------------------------*/
+	
 	/* create an async task to handle queuing of HTTP POSTs on separate threads */
 	private class HttpPostTask extends AsyncTask<ActivitySensor, Integer, Boolean> {
 		protected Boolean doInBackground(ActivitySensor... sensors) {
@@ -248,8 +223,31 @@ public class ActivityTrackerService extends Service {
 		}
 		 
 		protected void onPostExecute(Boolean result) {
-			if( result == false)
+			if( result == false && isNetworkAvailable() == false )
 				postNotification("Data Post Fail. Check Network Connection.");
+		}
+	}
+	
+	private boolean isNetworkAvailable() {
+	    ConnectivityManager connectivityManager 
+	          = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+	    NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+	    return activeNetworkInfo != null;
+	}
+	
+	/* create an async task to handle queuing of HTTP GETs on separate threads */
+	private class HttpGetTask extends AsyncTask<Integer, Integer, ArrayList<SensorVal>> {
+		protected ArrayList<SensorVal> doInBackground(Integer... limit) {
+			int count = limit.length;
+			
+			if(count == 0)
+				return new ArrayList<SensorVal>();
+
+			return doHttpGetAccelData(limit[0]);
+		}
+		 
+		protected void onPostExecute(ArrayList<SensorVal> result) {
+			//TODO: graph the data received
 		}
 	}
 	
@@ -261,21 +259,19 @@ public class ActivityTrackerService extends Service {
 		String channel = sensor.getChannelName();
 		boolean success = false;
 		
-		postcount++;
-		String id = String.valueOf(postcount);
-		
-		Log.i(TAG, id + " Trying to post " + channel + " of length: " + data.length());
-		
 		/* if there was no data, just report that we posted successfully */
 		if(data.length() == 0)
 		{
-			Log.d(TAG, id + " No data to post.");
 			success = true;
 		}
 		else
 		{
 			success = false;
 			HttpPost httppost = new HttpPost(UPLOAD_URL);
+			postcount++;
+			String id = String.valueOf(postcount);
+			
+			Log.i(TAG, id + " Trying to post " + channel + " of length: " + data.length());
 			
 			try {
 				List<BasicNameValuePair> nvp = new ArrayList<BasicNameValuePair>(2);
@@ -285,7 +281,9 @@ public class ActivityTrackerService extends Service {
 				nvp.add(new BasicNameValuePair("data", data));
 				httppost.setEntity(new UrlEncodedFormEntity(nvp));
 				
-				HttpResponse r = mHttpClient.execute(httppost);
+				HttpClient client = HttpClientFactory.getThreadSafeClient();
+				
+				HttpResponse r = client.execute(httppost);
 				Log.d(TAG, id + " Http response: " + r.getStatusLine().toString());
 				
 				if( r.getStatusLine().toString().contains("200 OK"))
@@ -299,9 +297,55 @@ public class ActivityTrackerService extends Service {
 			}
 			catch (IOException e) {
 				Log.e(TAG, id + " Exception Occurred on HTTP post: " + e.toString());
+				/* restore it to data list and post later */
+				sensor.restoreData();
 			}
 		}
 		
 		return success;
+	}
+	
+	
+	/**
+	 * Perform the HTTP Get routine and return 
+	 * @param sensorname
+	 * @param since
+	 * @return
+	 */
+	private ArrayList<SensorVal> doHttpGetAccelData(int limit) {			
+
+		boolean success = false;
+		ArrayList<SensorVal> fetchedData = new ArrayList<SensorVal>();
+		
+		Log.i(TAG, "Trying to get accel data");
+		
+		String query = "user=" + UPLOAD_UID + "&channel=WiFi_Data&limit=" + limit;
+		
+		HttpGet httpget;
+		try
+		{
+			httpget = new HttpGet(new URI("http", DOWNLOAD_HOST, DOWNLOAD_PATH, query, null));
+		} catch (URISyntaxException e1)
+		{
+			return fetchedData;
+		}
+
+		
+		try {
+	
+			HttpClient client = HttpClientFactory.getThreadSafeClient();
+			HttpResponse r = client.execute(httpget);
+			
+			Log.d(TAG, "Http response: " + r.getStatusLine().toString());
+			
+			if( r.getStatusLine().toString().contains("200 OK"))
+				success = true;
+		}
+		catch (IOException e) 
+		{
+			Log.e(TAG, "Exception Occurred on HTTP post: " + e.toString());
+		}
+		
+		return fetchedData;
 	}
 }
