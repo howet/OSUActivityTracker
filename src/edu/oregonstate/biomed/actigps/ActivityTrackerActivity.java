@@ -378,19 +378,20 @@ public class ActivityTrackerActivity extends Activity {
 			mRenderer.setXTitle(xTitle);
 			mRenderer.setYTitle(yTitle);
 			
-			setChartXAxis(xMin, xMax, 5);
-			
-			mRenderer.setYAxisMin(yMin);
-			mRenderer.setYAxisMax(yMax);
+			setChartAxes(xMin, xMax, yMin, yMax, 5);
+
 			mRenderer.setAxesColor(axesColor);
 			mRenderer.setLabelsColor(labelsColor);
 			mRenderer.setShowGrid(true);
 	  }
 	  
-	  private void setChartXAxis(double xMin, double xMax, int count)
+	  private void setChartAxes(double xMin, double xMax, double yMin, double yMax, int count)
 	  {
 		  mRenderer.setXAxisMin(xMin);
 		  mRenderer.setXAxisMax(xMax);
+	      mRenderer.setYAxisMin(yMin);
+		  mRenderer.setYAxisMax(yMax);
+		  
 		  mRenderer.setXLabels(count);
 		  mRenderer.setYLabels(count);
 		  mRenderer.setXLabelsAlign(Align.CENTER);
@@ -427,10 +428,13 @@ public class ActivityTrackerActivity extends Activity {
 		 
 		protected void onPostExecute(ArrayList<DataPoint> result) 
 		{
-			double x = 0;
+			double x;
+			double y;
+			
 			double minX = -1;
 			double maxX = 0;
-			double y = 0;
+			double minY = -1;
+			double maxY = 0;
 	        
 			mCurrentSeries.clear();
 			
@@ -445,11 +449,16 @@ public class ActivityTrackerActivity extends Activity {
 					maxX = x;
 				
 				y = val.getY();
+				/* keep track of max and min y for setting axis */
+				if( y < minY || minY < 0)
+					minY = y;
+				else if (y > maxX)
+					maxX = y;
+				
 		        mCurrentSeries.add(x, y);
 			}
-			
-			Log.i(ActivityTrackerService.TAG, "Min: " + minX + "  Max: " + maxX);
-			setChartXAxis(minX, maxX, 5);
+
+			setChartAxes(minX, maxX, minY - 1, maxY + 1, 5);
 	        
 	        if (mChartView != null) {
 	            mChartView.repaint();
@@ -467,7 +476,9 @@ public class ActivityTrackerActivity extends Activity {
 		
 		Log.i(ActivityTrackerService.TAG, "Trying to get accel data");
 		
-		String query = "user=" + ActivityTrackerService.UPLOAD_UID + "&channel=Activity_Data&limit=" + limit + "&since=1332210895000";
+		/* get all queries in the past day.  TODO: get rid of this once queries can be sorted by timestamp */
+		long sincetime = ((new Date()).getTime() - HOUR);
+		String query = "user=" + ActivityTrackerService.UPLOAD_UID + "&channel=Activity_Data&limit=" + limit + "&since=" + sincetime;
 		
 		HttpGet httpget;
 		try
