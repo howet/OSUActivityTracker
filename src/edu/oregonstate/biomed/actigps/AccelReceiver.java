@@ -9,17 +9,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.locks.ReentrantLock;
 
-import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.Bundle;
 import android.util.Log;
 
 public class AccelReceiver implements SensorEventListener, ActivitySensor
 {
-	private ActivityTrackerService parentService = null;
 	private SensorManager mSensorManager = null;
 	private Sensor mAccelerometer = null;
 	
@@ -37,14 +34,9 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	private ArrayList<Double> accelData = new ArrayList<Double>();
 	private ArrayList<Double> prevData;
 	
-	/* only send the broadcast every so often, to limit UI updates */
-	private int broadcast_count;
-	
 	public AccelReceiver(ActivityTrackerService serv)
 	{
-		parentService = serv;
 		mSensorManager = serv.sensors;
-		broadcast_count = 0;
 		dataPosting = false;
 	}
 	
@@ -123,8 +115,6 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 				
 				accelDataLock.unlock(); /* release data lock */
 				
-//				sendBroadcast(e);
-				
 				break;
 			case Sensor.TYPE_GYROSCOPE:
 				break;
@@ -133,28 +123,6 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 			}
 	}
 	
-//	private Intent broadcastIntent = new Intent("PHONE_ACCEL_UPDATE");
-//	private Bundle broadcastBundle = new Bundle();
-//	
-//	private void sendBroadcast(SensorVal event)
-//	{
-//		/* update UI every 4 data points */
-//		if(broadcast_count < 4)
-//		{
-//			broadcast_count++;
-//		}
-//		else
-//		{
-//			broadcast_count = 0;
-//			float[] vals = event.getVals();
-//			broadcastBundle.putString("x", Float.toString(vals[0]));
-//			broadcastBundle.putString("y", Float.toString(vals[1]));
-//			broadcastBundle.putString("z", Float.toString(vals[2]));
-//			broadcastBundle.putString("t", Long.toString(event.getTime()));
-//			broadcastIntent.putExtras(broadcastBundle);
-//			parentService.sendBroadcast(broadcastIntent);
-//		}
-//	}
 
 	@Override
 	public void onAccuracyChanged(Sensor sensor, int accuracy)

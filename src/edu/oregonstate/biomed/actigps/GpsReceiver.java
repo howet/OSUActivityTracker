@@ -19,7 +19,6 @@ public class GpsReceiver implements LocationListener, ActivitySensor
 	private ArrayList<Location> gpsLocs = null;
 	private ArrayList<Location> prevLocs = null;
 
-	private ActivityTrackerService parentService = null;
 	private LocationManager mlocManager = null;
 	
 	/* 
@@ -34,7 +33,6 @@ public class GpsReceiver implements LocationListener, ActivitySensor
 	 */
 	public GpsReceiver(ActivityTrackerService serv)
 	{
-		parentService = serv;
 		mlocManager = serv.location;
 		
 		gpsLocs = new ArrayList<Location>();
@@ -106,7 +104,6 @@ public class GpsReceiver implements LocationListener, ActivitySensor
 		b.putString("x", Double.toString(location.getLatitude()));
 		b.putString("y", Double.toString(location.getLongitude()));
 		i.putExtras(b);
-		parentService.sendBroadcast(i);
 	}
 
 	

@@ -25,11 +25,9 @@ import org.apache.http.client.methods.HttpGet;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningServiceInfo;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -47,12 +45,9 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TabHost;
 import android.widget.TabHost.TabSpec;
-import android.widget.TextView;
 import android.widget.Toast;
 
 public class ActivityTrackerActivity extends Activity {
-    /** Called when the activity is first created. */
-	private DataUpdateReceiver dataUpdateReceiver;
 	
 	private Timer mBackgroundTimer;
 	
@@ -78,19 +73,14 @@ public class ActivityTrackerActivity extends Activity {
         TabHost tabHost=(TabHost)findViewById(R.id.tabHost);
         tabHost.setup();
         
-        TabSpec spec0=tabHost.newTabSpec("Tab 0");
-        spec0.setIndicator("Visualization");
-        spec0.setContent(R.id.chart);
-        
         TabSpec spec1=tabHost.newTabSpec("Tab 1");
-        spec1.setContent(R.id.dataTab);
-        spec1.setIndicator("Data");
+        spec1.setIndicator("Visualization");
+        spec1.setContent(R.id.chart);
         
         TabSpec spec2=tabHost.newTabSpec("Tab 2");
         spec2.setIndicator("Settings");
         spec2.setContent(R.id.settingsTab);
-        
-        tabHost.addTab(spec0);
+
         tabHost.addTab(spec1);
         tabHost.addTab(spec2);
         
@@ -121,6 +111,9 @@ public class ActivityTrackerActivity extends Activity {
         mBackgroundTimer = new Timer();
         
         mBackgroundTimer.scheduleAtFixedRate( new HttpGetTimerTask(), 0, 30*1000);
+        
+        /* start the background service when the app is launched */
+        startService();
     }
     
     @Override
@@ -147,14 +140,6 @@ public class ActivityTrackerActivity extends Activity {
     public void onResume() {
     	super.onRestart();
     	
-    	if (dataUpdateReceiver == null) dataUpdateReceiver = new DataUpdateReceiver();
-    	IntentFilter intentFilter = new IntentFilter("PHONE_ACCEL_UPDATE");
-    	registerReceiver(dataUpdateReceiver, intentFilter);
-    	intentFilter = new IntentFilter("PHONE_GPS_UPDATE");
-    	registerReceiver(dataUpdateReceiver, intentFilter);
-    	intentFilter = new IntentFilter("PHONE_GYRO_UPDATE");
-    	registerReceiver(dataUpdateReceiver, intentFilter);
-    	
     	/* create chartview */
         if (mChartView == null) {
             LinearLayout layout = (LinearLayout) findViewById(R.id.chart);
@@ -177,25 +162,6 @@ public class ActivityTrackerActivity extends Activity {
 				Toast.LENGTH_SHORT).show();
     }
     
-    public void onPause() {
-    	super.onPause();
-    	try {
-    		if (dataUpdateReceiver != null) unregisterReceiver(dataUpdateReceiver);
-    	}
-    	catch (IllegalArgumentException ex) {
-    		// catch if the receiver is not registered
-    	}
-    }
-    
-    public void onDestroy() {
-    	super.onDestroy();
-    	try {
-    		if (dataUpdateReceiver != null) unregisterReceiver(dataUpdateReceiver);
-    	}
-    	catch (IllegalArgumentException ex) {
-    		// catch if the receiver is not registered
-    	}
-    }    
     
     /*
      * Service related things
@@ -219,6 +185,11 @@ public class ActivityTrackerActivity extends Activity {
 				Context.BIND_AUTO_CREATE);
 	}
 	
+	
+	/**
+	 * Checks to see if a service is running by parsing the service list
+	 * @return True if the background service is running; False otherwise
+	 */
 	private boolean isMyServiceRunning() {
 	    ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
 	    for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
@@ -229,8 +200,13 @@ public class ActivityTrackerActivity extends Activity {
 	    return false;
 	}
 	
-	
+	/* button handler */
 	public void onClickStartService(View v) {
+		startService();
+	}
+	
+	private void startService()
+	{
 		/* only create a new service if one did not already exist */
 		if(isMyServiceRunning() == false)
 		{
@@ -239,6 +215,7 @@ public class ActivityTrackerActivity extends Activity {
 		}
 	}
 	
+	/* button handler */
 	public void onClickStopService(View v) {
 		if(isMyServiceRunning())
 		{
@@ -318,34 +295,6 @@ public class ActivityTrackerActivity extends Activity {
 		((EditText)findViewById(R.id.txt_pushInterval)).setText(String.valueOf(pushinterval));
 	}
 	
-	private class DataUpdateReceiver extends BroadcastReceiver {
-		@Override
-		public void onReceive(Context ctx, Intent intent) {
-			if (intent.getAction().equals("PHONE_ACCEL_UPDATE")) {
-				Bundle data = intent.getExtras();
-				String s = data.getString("x")+","+data.getString("y")+","+data.getString("z");
-				String t = data.getString("t");
-				TextView txt = (TextView) findViewById(R.id.accel_data);
-				TextView time = (TextView) findViewById(R.id.time_data);
-				txt.setText(s);
-				time.setText(t);
-			}
-			else if (intent.getAction().equals("PHONE_GPS_UPDATE")) {
-				Bundle data = intent.getExtras();
-				String s = data.getString("x")+","+data.getString("y");
-				TextView txt = (TextView) findViewById(R.id.gps_data);
-				txt.setText(s);
-			}
-			else if (intent.getAction().equals("PHONE_GYRO_UPDATE")) {
-				Bundle data = intent.getExtras();
-				String s = data.getString("x")+","+data.getString("y")+","+data.getString("z");
-				TextView txt = (TextView) findViewById(R.id.gyro_data);
-				txt.setText(s);
-			}
-		}
-		
-	}
-	
 	  /**
 	   * Sets a few of the series renderer settings.
 	   * 
@@ -378,7 +327,7 @@ public class ActivityTrackerActivity extends Activity {
 			mRenderer.setXTitle(xTitle);
 			mRenderer.setYTitle(yTitle);
 			
-			setChartAxes(xMin, xMax, yMin, yMax, 5);
+			setChartAxes(xMin, xMax, -5, 30, 5);
 
 			mRenderer.setAxesColor(axesColor);
 			mRenderer.setLabelsColor(labelsColor);
