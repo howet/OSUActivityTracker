@@ -41,6 +41,9 @@
                 <Button android:text="Stop Service" android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/button3" android:onClick="onClickStopService" android:layout_gravity="right" android:layout_weight="1"></Button>
             </LinearLayout>
             
+            <Button android:text="Start Calibration" android:layout_height="wrap_content" android:id="@+id/button_calibrate" 
+            android:onClick="onClickCalibrate" android:layout_width="wrap_content" android:layout_weight="1"></Button>
+            
             <CheckBox 
             android:layout_width="wrap_content" 
             android:layout_height="wrap_content" 

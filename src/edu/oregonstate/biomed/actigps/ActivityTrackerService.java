@@ -39,9 +39,11 @@ public class ActivityTrackerService extends Service {
 	public static final String SETTINGS_ACCEL_ENABLE_KEY = "accelTracking";
 	public static final String SETTINGS_GYRO_ENABLE_KEY  = "gyroTracking";
 	public static final String SETTINGS_PUSH_INTERVAL_KEY  = "pushInterval";
+	public static final String SETTINGS_USER_ID_KEY  = "userID";
+	public static final String SETTINGS_CALIBRATE_KEY  = "calibrateVal";
 	
 	/* misc application strings */
-	public static final String UPLOAD_UID = "6pEJ4th7UBRuv6TH";
+	private String mUserId = "";
 	public static final String PREFS_NAME = "OSUActivityTrackerPrefs";
 	public static final String TAG = "ActTracker";
 	public static final String UPLOAD_URL =  "http://dataserv3.elasticbeanstalk.com/upload";
@@ -65,6 +67,8 @@ public class ActivityTrackerService extends Service {
 	private WiFiScanReceiver mWifiRcvr = null;
 	private GpsReceiver mGpsRcvr = null;
 	private GyroReceiver mGyroRcvr = null;
+	
+	private float mCalibrationLevel;
 	
 	private Timer mBackgroundTimer = null;
 	
@@ -111,6 +115,12 @@ public class ActivityTrackerService extends Service {
 		accel_enable = settings.getBoolean(SETTINGS_ACCEL_ENABLE_KEY, true);
 		gyro_enable = settings.getBoolean(SETTINGS_GYRO_ENABLE_KEY, true);
 		POST_PERIOD = settings.getInt(SETTINGS_PUSH_INTERVAL_KEY, 30);
+		
+		//TODO: change to randomly generated default user id
+		mUserId = settings.getString(SETTINGS_USER_ID_KEY, "6pEJ4th7UBRuv6TH");
+		
+		/* default value is high so no values are recorded if calibration has not completed */
+		mCalibrationLevel = settings.getFloat(SETTINGS_CALIBRATE_KEY, 1000);
 		
 		/* get system services */
 		sensors = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
@@ -201,6 +211,15 @@ public class ActivityTrackerService extends Service {
 		mNotify.notify(0, notification);
 	}
 	
+	/**
+	 * Get the level of calibration for the accelerometer, as read from the settings
+	 * @return Calibration level
+	 */
+	public float getCalibrationLevel()
+	{
+		return mCalibrationLevel;
+	}
+	
 	/*----------------------------------------
 	 * HTTP Stuff Below Here
 	 *---------------------------------------*/
@@ -258,7 +277,7 @@ public class ActivityTrackerService extends Service {
 			try {
 				List<BasicNameValuePair> nvp = new ArrayList<BasicNameValuePair>(2);
 				
-				nvp.add(new BasicNameValuePair("user", UPLOAD_UID));
+				nvp.add(new BasicNameValuePair("user", mUserId));
 				nvp.add(new BasicNameValuePair("channel", channel));
 				nvp.add(new BasicNameValuePair("data", data));
 				httppost.setEntity(new UrlEncodedFormEntity(nvp));

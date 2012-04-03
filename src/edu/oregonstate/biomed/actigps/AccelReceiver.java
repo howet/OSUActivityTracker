@@ -9,16 +9,22 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.locks.ReentrantLock;
 
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Bundle;
 import android.util.Log;
 
 public class AccelReceiver implements SensorEventListener, ActivitySensor
 {
+	private ActivityTrackerService parentService = null;
 	private SensorManager mSensorManager = null;
 	private Sensor mAccelerometer = null;
+	
+	
+	private float calibrate_level;
 	
 	private ReentrantLock accelDataLock = new ReentrantLock();
 	
@@ -36,6 +42,8 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	
 	public AccelReceiver(ActivityTrackerService serv)
 	{
+		parentService = serv;
+		calibrate_level = serv.getCalibrationLevel();
 		mSensorManager = serv.sensors;
 		dataPosting = false;
 	}
@@ -106,21 +114,36 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 				float z = event.values[2];
 				double mag = Math.sqrt((x * x) + (y * y) + (z * z));
 				
-				accelDataLock.lock(); /* acquire data lock */
-				//Log.i(ActivityTrackerService.TAG, "Magnitude: " + mag);
-
-				accelData.add(mag);
+				/* only track the data if it is above the level for standing still */
+				if( mag > calibrate_level )
+				{
+					accelDataLock.lock(); /* acquire data lock */
+					Log.i(ActivityTrackerService.TAG, "Magnitude: " + mag);
+	
+					accelData.add(mag);
 //				accelData.add(e);	
+					
+					
+					accelDataLock.unlock(); /* release data lock */
+				}
 				
-				
-				accelDataLock.unlock(); /* release data lock */
-				
+				sendBroadcast(mag);
 				break;
 			case Sensor.TYPE_GYROSCOPE:
 				break;
 			case Sensor.TYPE_MAGNETIC_FIELD:
 				break;
 			}
+	}
+	
+	private Intent broadcastIntent = new Intent("PHONE_ACCELEROMETER_VALUE");
+	private Bundle broadcastBundle = new Bundle();
+
+	private void sendBroadcast(double avg)
+	{
+		broadcastBundle.putDouble("val", avg);
+		broadcastIntent.putExtras(broadcastBundle);
+		parentService.sendBroadcast(broadcastIntent);
 	}
 	
 

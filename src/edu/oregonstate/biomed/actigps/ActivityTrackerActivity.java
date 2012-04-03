@@ -24,10 +24,16 @@ import org.apache.http.client.methods.HttpGet;
 
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.AlertDialog;
 import android.app.ActivityManager.RunningServiceInfo;
+import android.app.Dialog;
+import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -45,10 +51,11 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TabHost;
 import android.widget.TabHost.TabSpec;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class ActivityTrackerActivity extends Activity {
-	
+	private DataUpdateReceiver dataUpdateRcvr;	
 	private Timer mBackgroundTimer;
 	
 	/* chart variables */
@@ -57,15 +64,21 @@ public class ActivityTrackerActivity extends Activity {
 	private XYSeries mCurrentSeries;
 	private XYSeriesRenderer mCurrentRenderer;
 	private String mDateFormat;
+	private String mUserId;
 	private GraphicalView mChartView;
 	
-	  private static final long HOUR = 3600 * 1000;
+	private float calibrate_value;
+	
+	private static final long HOUR = 3600 * 1000;
 
-	  private static final long DAY = HOUR * 24;
+	private static final long DAY = HOUR * 24;
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+ 
+        /* start the background service when the app is launched */
+        startService();
         
         /* Set up tabbed view */
         setContentView(R.layout.main);
@@ -105,15 +118,12 @@ public class ActivityTrackerActivity extends Activity {
           mChartView.repaint();
         }
         
-    	/* update the ui based on saved setting on start */
-        updateSettings();  
-        
         mBackgroundTimer = new Timer();
         
         mBackgroundTimer.scheduleAtFixedRate( new HttpGetTimerTask(), 0, 30*1000);
         
-        /* start the background service when the app is launched */
-        startService();
+    	/* update the ui based on saved setting on start */
+        updateSettings();
     }
     
     @Override
@@ -217,6 +227,11 @@ public class ActivityTrackerActivity extends Activity {
 	
 	/* button handler */
 	public void onClickStopService(View v) {
+		stopService();
+	}
+	
+	private void stopService()
+	{
 		if(isMyServiceRunning())
 		{
 			try {
@@ -230,14 +245,96 @@ public class ActivityTrackerActivity extends Activity {
 			stopService(new Intent(this, ActivityTrackerService.class));
 		}
 	}
+	/* button handler */
+	public void onClickCalibrate(View v) {
+		/* calibrate the accelerometer for this device */
+		calibrateAccelerometer();
+	}
+
+	
+	private ProgressDialog progDiag;
+	
+    protected Dialog onCreateDialog(int id) {
+        switch(id) {
+        case 0:
+        	progDiag = new ProgressDialog(ActivityTrackerActivity.this);
+        	progDiag.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+        	progDiag.setMessage("Calibrating. Please wait...");
+            return progDiag;
+        default:
+            return null;
+        }
+    }
+	
+	public void calibrateAccelerometer()
+	{
+		/* start the service if it has not yet started */
+		startService();
+		
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setMessage("Place the device on a stable surface and press \"Ok\"")
+	       .setNeutralButton(R.string.OK, new DialogInterface.OnClickListener() {
+	           public void onClick(DialogInterface dialog, int id) {
+	        	   /* dismiss the old dialog before popping up progress dialog */
+	        	   dialog.dismiss();
+	        	   
+	        	   showDialog(0);
+	        	   
+	        	   CalibrateThread t = new CalibrateThread();
+	        	   t.start();
+	           }
+	       });
+		
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
+	
+	/**
+	 * Nested thread class to handle accelerometer calibration procedure
+	 */
+	private class CalibrateThread extends Thread {       
+		CalibrateThread() { }
+       
+		/* perform the calibration */
+		@Override
+        public void run() {
+     	   /* register for accelerometer updates */
+		   if(dataUpdateRcvr == null) dataUpdateRcvr = new DataUpdateReceiver();
+     	   IntentFilter intentFilter = new IntentFilter("PHONE_ACCELEROMETER_VALUE");
+           registerReceiver(dataUpdateRcvr, intentFilter);
+     	   
+           /* wait for 5 seconds of accelerometer data */
+           try
+		   {
+				Thread.sleep(5000);
+		   } catch (InterruptedException e)
+		   {
+				//Do nothing
+		   }
+     	   
+		   unregisterReceiver(dataUpdateRcvr);
+		   
+		   /* calibrated value is average at stationary, plus offset */
+		   calibrate_value = (float)(dataUpdateRcvr.getAvg() + 0.5);
+		   dismissDialog(0);
+		   
+		   /* commit the settings */
+		   saveSettings();
+        }
+    }
 
 	
 	public void onClickCommitSettings(View v) {
+		saveSettings();
+	}
+	
+	private void saveSettings()
+	{
 		/* save service running state */
 		boolean wasRunning = isMyServiceRunning();
 		
 		/* stop the current service before applying settings */
-		onClickStopService(v);
+		stopService();
 		
 		boolean wifienabled = ((CheckBox)findViewById(R.id.chkbox_wifiscan)).isChecked();
 		boolean gpsenabled = ((CheckBox)findViewById(R.id.chkbox_gpsscan)).isChecked();
@@ -250,31 +347,23 @@ public class ActivityTrackerActivity extends Activity {
 		/* setup the new settings */
 	    SharedPreferences settings = getSharedPreferences(ActivityTrackerService.PREFS_NAME, 0);
 	    SharedPreferences.Editor editor = settings.edit();
-	    
-	    /* check if the setting already was set to the correct value.  
-	     * Default value is the opposite of desired value, 
-	     * so setting will be written if no setting was present. */
-	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, !wifienabled) != wifienabled)
-	    	editor.putBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, wifienabled);
-	    
-	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, !gpsenabled) != gpsenabled)
-	    	editor.putBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, gpsenabled);
-	    
-	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, !accelenabled) != accelenabled)
-	    	editor.putBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, accelenabled);
-	    
-	    if(settings.getBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, !gyroenabled) != gyroenabled)
-	    	editor.putBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, gyroenabled);
-	    
-	    if(settings.getInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, -1) != pushinterval)
-	    	editor.putInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, pushinterval);
+	  
+	    /* set the enabled values based on checkboxes */
+    	editor.putBoolean(ActivityTrackerService.SETTINGS_WIFI_ENABLE_KEY, wifienabled);
+    	editor.putBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, gpsenabled);
+    	editor.putBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, accelenabled);
+    	editor.putBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, gyroenabled);
+    	editor.putInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, pushinterval);
+    	
+    	/* save the latest calibration value */
+	    editor.putFloat(ActivityTrackerService.SETTINGS_CALIBRATE_KEY, calibrate_value);
 	    
 	    /* commit changes to settings */
 	    editor.commit();
 	    
 	    /* only start the service if it was running before */
 	    if( wasRunning == true )
-	    	onClickStartService(v);
+	    	startService();
 	}
 
 	private void updateSettings(){
@@ -284,6 +373,28 @@ public class ActivityTrackerActivity extends Activity {
 		boolean accelenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, true);
 		boolean gyroenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, true);
 		int pushinterval = settings.getInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, 30);
+		
+
+		/* set these settings to default values if they are not present */
+	    SharedPreferences.Editor editor = settings.edit();
+	    
+	    /* check if the setting returns the default value, then perform calibration if it does */
+	    calibrate_value = settings.getFloat(ActivityTrackerService.SETTINGS_CALIBRATE_KEY, 0);
+	    if(calibrate_value == 0)
+	    {
+	    	calibrateAccelerometer();
+	    }
+
+		//TODO: use randomly generated user id if id is not present
+		mUserId = settings.getString(ActivityTrackerService.SETTINGS_USER_ID_KEY, "");
+		if( mUserId.length() == 0 )
+		{
+			mUserId = "6pEJ4th7UBRuv6TH";
+			editor.putString(ActivityTrackerService.SETTINGS_USER_ID_KEY, mUserId);
+		}
+	    
+	    /* commit changes to settings */
+	    editor.commit();
 		
 		/* update the checked state of the checkboxes */
 		((CheckBox)findViewById(R.id.chkbox_wifiscan)).setChecked(wifienabled);
@@ -347,7 +458,39 @@ public class ActivityTrackerActivity extends Activity {
 		  mRenderer.setYLabelsAlign(Align.RIGHT);
 	  }
 	
-	/* HTTP related things */
+	  private class DataUpdateReceiver extends BroadcastReceiver {
+		    ArrayList<Double> vals = new ArrayList<Double>();
+		    
+		    public DataUpdateReceiver()
+		    {
+		    	vals.clear();
+		    }
+		    
+			@Override
+			public void onReceive(Context ctx, Intent intent) {
+				if (intent.getAction().equals("PHONE_ACCELEROMETER_VALUE")) {
+					Bundle data = intent.getExtras();
+					vals.add(data.getDouble("val"));
+				}
+			}
+			
+			public double getAvg()
+			{
+				/* if we got no other values, 10 will be average */
+				double avg = 10;
+				int size = vals.size();
+				for(double val : vals)
+				{
+					avg += val;
+				}
+				
+				return( avg / size );
+			}
+		}
+	  
+	/* 
+	 * HTTP related things 
+	 */
 	private class HttpGetTimerTask extends TimerTask {
     	private Handler mHandler = new Handler(Looper.getMainLooper());
 
@@ -427,7 +570,7 @@ public class ActivityTrackerActivity extends Activity {
 		
 		/* get all queries in the past day.  TODO: get rid of this once queries can be sorted by timestamp */
 		long sincetime = ((new Date()).getTime() - HOUR);
-		String query = "user=" + ActivityTrackerService.UPLOAD_UID + "&channel=Activity_Data&limit=" + limit + "&since=" + sincetime;
+		String query = "user=" + mUserId + "&channel=Activity_Data&limit=" + limit + "&since=" + sincetime;
 		
 		HttpGet httpget;
 		try
