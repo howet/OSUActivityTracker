@@ -1,8 +1,8 @@
 package edu.oregonstate.biomed.actigps;
 
 /*
- * Everything Commented out is for future use as a raw data collector.
- * Functionality has been temporarily changed to be a raw activity factor
+ * Everything Commented out is for future use as a raw accelerometer data collector.
+ * Functionality has been changed to be a raw activity factor calculator.
  */
 
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	private SensorManager mSensorManager = null;
 	private Sensor mAccelerometer = null;
 	
-	
+	private String mLatestAvg;
 	private float calibrate_level;
 	
 	private ReentrantLock accelDataLock = new ReentrantLock();
@@ -32,20 +32,23 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	 * boolean to keep track of if data is currently being posted,
 	 * which would require a clearData or restoreData call.
 	 */
-	private boolean dataPosting;
+//	private boolean dataPosting;
 	
 	/* accelerometer data */
 //	private ArrayList<SensorVal> accelData = new ArrayList<SensorVal>();
 //	private ArrayList<SensorVal> prevData;
 	private ArrayList<Double> accelData = new ArrayList<Double>();
-	private ArrayList<Double> prevData;
+	/* prevData array keeps any data that has failed to post */
+	private ArrayList<String> prevData;
 	
 	public AccelReceiver(ActivityTrackerService serv)
 	{
 		parentService = serv;
 		calibrate_level = serv.getCalibrationLevel();
 		mSensorManager = serv.sensors;
-		dataPosting = false;
+		mLatestAvg = "";
+		prevData = new ArrayList<String>();
+//		dataPosting = false;
 	}
 	
 	
@@ -63,43 +66,47 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	@Override
 	public String getDataString()
 	{
-		String data = "";
-		
+		String datastr = "";
+		ArrayList<Double> data;
 		/* return nothing if we are waiting for a data post */
-		if( dataPosting == false )
-		{
+//		if( dataPosting == false )
+//		{
 
 			accelDataLock.lock(); /* acquire data lock: we don't want data changing while we are reading it! */
 			
 			/* copy data to array */
 //			prevData = (ArrayList<SensorVal>) accelData.clone();
-			prevData = (ArrayList<Double>) accelData.clone();
+			data = (ArrayList<Double>) accelData.clone();
 			
 			/* clear data up to this point */
 			accelData.clear();
 			
-			if(prevData.size() > 0)
-				dataPosting = true;
+//			if(prevData.size() > 0)
+//				dataPosting = true;
 			
 			accelDataLock.unlock(); /* release data lock */
 			
-			data = buildDataString(prevData);
-		}
+			datastr = buildDataString(data);
+//		}
 
-		return data;
+		/* try to post data that failed to post before */
+		if(prevData.size() > 0)
+		{
+			for(String line : prevData)
+			{
+				datastr += line;
+			}
+		}
+		
+		return datastr;
 	}
 
 	@Override
 	public void clearData()
 	{
-		if( prevData != null )
-			prevData.clear();
+		prevData.clear();
 		
-		/* since we are clearing, that probably means we won't have any problems for awhile, 
-		 * so we can GC the ArrayList */
-		prevData = null;
-		
-		dataPosting = false;
+//		dataPosting = false;
 	}
 
 	@Override
@@ -118,7 +125,7 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 				if( mag > calibrate_level )
 				{
 					accelDataLock.lock(); /* acquire data lock */
-					Log.i(ActivityTrackerService.TAG, "Magnitude: " + mag);
+					//Log.i(ActivityTrackerService.TAG, "Magnitude: " + mag);
 	
 					accelData.add(mag);
 //				accelData.add(e);	
@@ -187,9 +194,11 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 		}
 		
 		/* cancel out neutral accelerometer reading (~10) */
-		avg = Math.max((avg / size) - 10, 0);
-	
-		return String.format("%d:%f\r\n", (new Date()).getTime(), avg);
+		if( size != 0 )
+			avg = Math.max((avg / size) - 10, 0);
+		
+		mLatestAvg = String.format("%d:%f\r\n", (new Date()).getTime(), avg);
+		return mLatestAvg;
 	}
 
 
@@ -204,16 +213,8 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	@Override
 	public void restoreData()
 	{
-		accelDataLock.lock(); /* acquire data lock */
-		
-		/* restore the previously fetched data */
-		if( prevData != null )
-			accelData.addAll(prevData);
-		
-		accelDataLock.unlock(); /* release data lock */
-		
-		prevData = null;
-		dataPosting = false;
+		/* save the previously formatted data */
+		prevData.add(mLatestAvg);
 	}
 
 }

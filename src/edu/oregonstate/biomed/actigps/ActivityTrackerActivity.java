@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 
 import org.achartengine.ChartFactory;
 import org.achartengine.GraphicalView;
@@ -51,7 +52,6 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TabHost;
 import android.widget.TabHost.TabSpec;
-import android.widget.TextView;
 import android.widget.Toast;
 
 public class ActivityTrackerActivity extends Activity {
@@ -111,6 +111,9 @@ public class ActivityTrackerActivity extends Activity {
         renderer.setFillPoints(true);
 
         mRenderer.addSeriesRenderer(renderer);
+        mRenderer.setZoomEnabled(true, false);
+        mRenderer.setZoomButtonsVisible(false);
+        mRenderer.setExternalZoomEnabled(true);
         
         mCurrentRenderer = renderer;
 
@@ -120,7 +123,7 @@ public class ActivityTrackerActivity extends Activity {
         
         mBackgroundTimer = new Timer();
         
-        mBackgroundTimer.scheduleAtFixedRate( new HttpGetTimerTask(), 0, 30*1000);
+        mBackgroundTimer.scheduleAtFixedRate( new HttpGetTimerTask(), 0, 60*1000);
         
     	/* update the ui based on saved setting on start */
         updateSettings();
@@ -153,7 +156,7 @@ public class ActivityTrackerActivity extends Activity {
     	/* create chartview */
         if (mChartView == null) {
             LinearLayout layout = (LinearLayout) findViewById(R.id.chart);
-            mChartView = ChartFactory.getLineChartView(this, mDataset, mRenderer);
+            mChartView = ChartFactory.getTimeChartView(this, mDataset, mRenderer, "MM/dd H:mm");
             mRenderer.setClickEnabled(true);
             mRenderer.setSelectableBuffer(100);
             mChartView.setOnClickListener(new View.OnClickListener() {
@@ -384,12 +387,13 @@ public class ActivityTrackerActivity extends Activity {
 	    {
 	    	calibrateAccelerometer();
 	    }
-
-		//TODO: use randomly generated user id if id is not present
+	    
 		mUserId = settings.getString(ActivityTrackerService.SETTINGS_USER_ID_KEY, "");
 		if( mUserId.length() == 0 )
 		{
-			mUserId = "6pEJ4th7UBRuv6TH";
+			String uuid = UUID.randomUUID().toString().substring(24);
+			System.out.println("uuid = " + uuid);
+			mUserId = uuid;
 			editor.putString(ActivityTrackerService.SETTINGS_USER_ID_KEY, mUserId);
 		}
 	    
@@ -438,7 +442,7 @@ public class ActivityTrackerActivity extends Activity {
 			mRenderer.setXTitle(xTitle);
 			mRenderer.setYTitle(yTitle);
 			
-			setChartAxes(xMin, xMax, -5, 30, 5);
+			setChartAxes(xMin, xMax, yMin, yMax, 5);
 
 			mRenderer.setAxesColor(axesColor);
 			mRenderer.setLabelsColor(labelsColor);
@@ -484,7 +488,7 @@ public class ActivityTrackerActivity extends Activity {
 					avg += val;
 				}
 				
-				return( avg / size );
+				return( avg / ( size + 1 ));
 			}
 		}
 	  
@@ -501,7 +505,7 @@ public class ActivityTrackerActivity extends Activity {
               	/* run accelerometer and gyro on own threads: these take awhile */
               	Log.d(ActivityTrackerService.TAG, "Starting HTTP Posts.");
               	
-              	new HttpGetTask().execute(100);
+              	new HttpGetTask().execute(1000);
               }
            });
          }
@@ -522,39 +526,48 @@ public class ActivityTrackerActivity extends Activity {
 		{
 			double x;
 			double y;
-			
-			double minX = -1;
+
 			double maxX = 0;
 			double minY = -1;
 			double maxY = 0;
 	        
-			mCurrentSeries.clear();
-			
-			for(DataPoint val : result)
+			/* only redraw if we have results */
+			if( result.size() > 0 )
 			{
-				x = val.getX();
+				mCurrentSeries.clear();
 				
-				/* keep track of max and min x for setting axis */
-				if( x < minX || minX < 0)
-					minX = x;
-				else if (x > maxX)
-					maxX = x;
-				
-				y = val.getY();
-				/* keep track of max and min y for setting axis */
-				if( y < minY || minY < 0)
-					minY = y;
-				else if (y > maxX)
-					maxX = y;
-				
-		        mCurrentSeries.add(x, y);
-			}
-
-			setChartAxes(minX, maxX, minY - 1, maxY + 1, 5);
+				for(DataPoint val : result)
+				{
+					x = val.getX();
+					
+					/* keep track of max x for setting axis */
+					if (x > maxX)
+						maxX = x;
+					
+					y = val.getY();
+					
+					/* keep track of max and min y for setting axis */
+					if( minY < 0)
+					{
+						minY = y;
+						maxY = y;
+					}
+					else if (y < minY)
+						minY = y;
+					else if (y > maxY)
+						maxY = y;
+					
+			        mCurrentSeries.add(x, y);
+				}
+	
+				/* set x axis to only display past hour of data */
+				setChartAxes(maxX - HOUR, maxX, minY - 1, maxY + 1, 5);
+		        
+		        if (mChartView != null) {
+		            mChartView.repaint();
+		        }
 	        
-	        if (mChartView != null) {
-	            mChartView.repaint();
-	        }
+			}
 		}
 	}
 	
@@ -568,9 +581,10 @@ public class ActivityTrackerActivity extends Activity {
 		
 		Log.i(ActivityTrackerService.TAG, "Trying to get accel data");
 		
-		/* get all queries in the past day.  TODO: get rid of this once queries can be sorted by timestamp */
-		long sincetime = ((new Date()).getTime() - HOUR);
-		String query = "user=" + mUserId + "&channel=Activity_Data&limit=" + limit + "&since=" + sincetime;
+		/* get all queries in the past day */
+		long sincetime = ((new Date()).getTime() - DAY);
+		String query = "user=" + ActivityTrackerService.UPLOAD_UID + "&channel=Activity_Data_" + 
+			mUserId + "&limit=" + limit + "&since=" + sincetime;
 		
 		HttpGet httpget;
 		try
