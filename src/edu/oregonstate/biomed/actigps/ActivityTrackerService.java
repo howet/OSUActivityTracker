@@ -38,9 +38,9 @@ public class ActivityTrackerService extends Service {
 	public static final String SETTINGS_GPS_ENABLE_KEY   = "gpsTracking";
 	public static final String SETTINGS_ACCEL_ENABLE_KEY = "accelTracking";
 	public static final String SETTINGS_GYRO_ENABLE_KEY  = "gyroTracking";
-	public static final String SETTINGS_PUSH_INTERVAL_KEY  = "pushInterval";
 	public static final String SETTINGS_USER_ID_KEY  = "userID";
 	public static final String SETTINGS_CALIBRATE_KEY  = "calibrateVal";
+	public static final String SETTINGS_TRACKED_USERS_KEY  = "trackedUsers";
 	
 	/* misc application strings */
 	private String mUserId = "";
@@ -51,7 +51,7 @@ public class ActivityTrackerService extends Service {
 	public static final String DOWNLOAD_HOST =  "dataserv3.elasticbeanstalk.com";
 	public static final String DOWNLOAD_PATH = "/download";
 	
-	private int POST_PERIOD; /* how often to post data to server */
+	private static final int POST_PERIOD = 30; /* how often to post data to server */
 	
 	/* Managers */
 	SensorManager sensors;
@@ -115,7 +115,6 @@ public class ActivityTrackerService extends Service {
 		gps_enable = settings.getBoolean(SETTINGS_GPS_ENABLE_KEY, true);
 		accel_enable = settings.getBoolean(SETTINGS_ACCEL_ENABLE_KEY, true);
 		gyro_enable = settings.getBoolean(SETTINGS_GYRO_ENABLE_KEY, true);
-		POST_PERIOD = settings.getInt(SETTINGS_PUSH_INTERVAL_KEY, 30);
 		
 		mUserId = settings.getString(SETTINGS_USER_ID_KEY, "");
 		

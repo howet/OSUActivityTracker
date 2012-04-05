@@ -15,6 +15,7 @@
     android:id="@android:id/tabcontent"
      android:scrollbars="vertical">
      
+         <!-- Graph Tab -->
          <LinearLayout
             xmlns:android="http://schemas.android.com/apk/res/android"
             android:layout_width="match_parent"
@@ -25,52 +26,98 @@
 
         </LinearLayout>
 
-	     
+	    <!-- Settings Tab -->
 		<LinearLayout
-            xmlns:android="http://schemas.android.com/apk/res/android"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/settingsTab"
-            android:orientation="vertical"
-            android:paddingTop="70dp">
-          
-            <TextView android:id="@+id/textView1" android:layout_height="wrap_content" android:textStyle="bold" android:text="@string/settingstitle" android:layout_width="wrap_content" android:layout_weight="1"></TextView>
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/settingsTab"
+        android:orientation="vertical"
+        android:paddingTop="70dp">
             
-            <LinearLayout android:layout_width="match_parent" android:id="@+id/linearLayout1" android:layout_height="wrap_content" android:layout_gravity="center">
-                <Button android:text="Start Service" android:layout_height="wrap_content" android:id="@+id/button1" android:onClick="onClickStartService" android:layout_width="wrap_content" android:layout_weight="1"></Button>
-                <Button android:text="Stop Service" android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/button3" android:onClick="onClickStopService" android:layout_gravity="right" android:layout_weight="1"></Button>
-            </LinearLayout>
-            
-            <Button android:text="Start Calibration" android:layout_height="wrap_content" android:id="@+id/button_calibrate" 
-            android:onClick="onClickCalibrate" android:layout_width="wrap_content" android:layout_weight="1"></Button>
-            
-            <CheckBox 
-            android:layout_width="wrap_content" 
-            android:layout_height="wrap_content" 
-            android:id="@+id/chkbox_wifiscan" 
-            android:text="@string/wificheckbox" 
-            android:checked="true" android:layout_weight="1"/>
-            
-            <CheckBox 
-            android:layout_width="wrap_content" 
-            android:layout_height="wrap_content" 
-            android:id="@+id/chkbox_gpsscan" 
-            android:text="@string/gpscheckbox" 
-            android:checked="true" android:layout_weight="1"/>
-            
-            <CheckBox 
-            android:layout_width="wrap_content" 
-            android:layout_height="wrap_content" 
-            android:id="@+id/chkbox_accel" 
-            android:text="@string/accelcheckbox" 
-            android:checked="true" android:layout_weight="1"/>
-            <CheckBox android:text="@string/gyrocheckbox" android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/chkbox_gyro"></CheckBox>
-            <LinearLayout android:id="@+id/linearLayout2" android:layout_height="wrap_content" android:layout_width="match_parent" android:layout_weight="1">
-                <TextView android:layout_width="wrap_content" android:id="@+id/textView2" android:text="Data Push Interval" android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginLeft="5dp" android:layout_marginRight="5dp"></TextView>
-                <EditText android:layout_width="wrap_content" android:numeric="integer" android:maxLength="3" android:id="@+id/txt_pushInterval" android:width="80dp" android:layout_height="wrap_content" android:text="30"></EditText>
-            </LinearLayout>
-            
-            <Button android:layout_height="wrap_content" android:text="@string/commitsettings" android:layout_width="wrap_content" android:layout_gravity="center" android:id="@+id/button_commitSettings" android:onClick="onClickCommitSettings" android:layout_weight="1"></Button>
+            <ScrollView
+		    xmlns:android="http://schemas.android.com/apk/res/android"
+		    android:layout_width="fill_parent"
+		    android:layout_height="fill_parent">
+			    
+			    <LinearLayout
+	            android:orientation="vertical"
+	            android:layout_width="fill_parent"
+	            android:layout_height="fill_parent">
+		          
+		            <TextView android:id="@+id/textView1" android:layout_height="wrap_content" android:textStyle="bold" 
+		                android:text="@string/settingstitle" android:layout_width="wrap_content" android:layout_weight="1"></TextView>
+		            
+		            <LinearLayout android:layout_width="match_parent" android:id="@+id/linearLayout1" android:layout_height="wrap_content" android:layout_gravity="center">
+                        <Button android:text="Start Calibration" android:layout_height="wrap_content" android:id="@+id/button_calibrate" 
+                           android:onClick="onClickCalibrate" android:layout_width="wrap_content" android:layout_weight="1"></Button>
+                        <Button android:text="Stop Monitoring" android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/button3" 
+                            android:onClick="onClickStopService" android:layout_gravity="right" android:layout_weight="1"></Button>
+                    </LinearLayout>
+		            
+		            <LinearLayout android:layout_width="match_parent" android:id="@+id/linearLayout3" android:layout_height="wrap_content" android:layout_gravity="center">
+		                <TextView android:layout_width="wrap_content" android:id="@+id/text_UID_title" android:text="Your User ID:" android:textStyle="bold"
+		                    android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginLeft="5dp" android:layout_marginRight="5dp"/>
+		                <TextView android:layout_width="wrap_content" android:id="@+id/text_UID" android:text="" 
+		                    android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginLeft="5dp" android:layout_marginRight="5dp"/>
+		            </LinearLayout>
+		            
+		
+		                
+		            <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+				    android:layout_width="fill_parent"
+				    android:layout_height="fill_parent">
+		                
+			          <TextView android:layout_width="wrap_content" android:id="@+id/text_Others_title" android:text="Other Users Tracked:" android:textStyle="bold"
+			               android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginLeft="5dp" android:layout_marginRight="5dp"/>
+		              <TextView android:layout_width="wrap_content" android:id="@+id/text_Others" android:text=""
+		                   android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginLeft="5dp" android:layout_marginRight="5dp"/>
+		                
+		
+				    </LinearLayout>
+				    
+				    <LinearLayout android:layout_width="match_parent" android:id="@+id/linearLayout1" android:layout_height="wrap_content" android:layout_gravity="center">
+	                    <Button android:text="Add User"
+	                         android:onClick="onClickAddUser" android:layout_width="wrap_content"
+	                            android:layout_height="wrap_content" android:id="@+id/button_addUser" android:layout_gravity="left"/>
+	                    <Button android:text="Clear Users"
+	                         android:onClick="onClickClearUsers" android:layout_width="wrap_content"
+	                            android:layout_height="wrap_content" android:id="@+id/button_clearUsers" android:layout_gravity="left"/>
+                    </LinearLayout>
+
+		            
+		            <CheckBox 
+		            android:layout_width="wrap_content" 
+		            android:layout_height="wrap_content" 
+		            android:id="@+id/chkbox_wifiscan" 
+		            android:text="@string/wificheckbox" 
+		            android:checked="true" android:layout_weight="1"/>
+		            
+		            <CheckBox 
+		            android:layout_width="wrap_content" 
+		            android:layout_height="wrap_content" 
+		            android:id="@+id/chkbox_gpsscan" 
+		            android:text="@string/gpscheckbox" 
+		            android:checked="true" android:layout_weight="1"/>
+		            
+		            <CheckBox 
+		            android:layout_width="wrap_content" 
+		            android:layout_height="wrap_content" 
+		            android:id="@+id/chkbox_accel" 
+		            android:text="@string/accelcheckbox" 
+		            android:checked="true" android:layout_weight="1"/>
+		            
+		            <CheckBox android:text="@string/gyrocheckbox" android:layout_width="wrap_content" 
+		                android:layout_height="wrap_content" android:id="@+id/chkbox_gyro">
+		            </CheckBox>
+		
+		            
+		            
+		            <Button android:layout_height="wrap_content" android:text="@string/commitsettings" android:layout_width="wrap_content" 
+		                android:layout_gravity="center" android:id="@+id/button_commitSettings" android:onClick="onClickCommitSettings" android:layout_weight="1" android:layout_marginTop="2dp">
+		            </Button>
+		        </LinearLayout>
+	        </ScrollView>
         </LinearLayout>
      
      </FrameLayout>

@@ -44,6 +44,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.text.Editable;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -52,6 +53,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TabHost;
 import android.widget.TabHost.TabSpec;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class ActivityTrackerActivity extends Activity {
@@ -61,10 +63,15 @@ public class ActivityTrackerActivity extends Activity {
 	/* chart variables */
 	private XYMultipleSeriesDataset mDataset = new XYMultipleSeriesDataset();
 	private XYMultipleSeriesRenderer mRenderer = new XYMultipleSeriesRenderer();
-	private XYSeries mCurrentSeries;
 	private XYSeriesRenderer mCurrentRenderer;
 	private String mDateFormat;
+	
+	private static final int[] SERIES_COLORS = { Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW };
+	private static final PointStyle[] SERIES_STYLES = { PointStyle.CIRCLE, PointStyle.TRIANGLE, PointStyle.SQUARE, PointStyle.DIAMOND };
+	
 	private String mUserId;
+	private ArrayList<String> mOtherUsers;
+	
 	private GraphicalView mChartView;
 	
 	private float calibrate_value;
@@ -96,30 +103,36 @@ public class ActivityTrackerActivity extends Activity {
 
         tabHost.addTab(spec1);
         tabHost.addTab(spec2);
+        tabHost.setCurrentTab(0);
         
         /* create chart stuff */
-        setChartSettings("Activity Data", "Timestamp", "Activity Level", new Date().getTime() - (7 * DAY), 
+        setChartSettings("Activity Data", "Time", "Activity Level", new Date().getTime() - (7 * DAY), 
         		new Date().getTime() - (7 * DAY), -5, 30, Color.LTGRAY, Color.LTGRAY);
 
-        XYSeries series = new XYSeries("Data");
+        XYSeries series = new XYSeries("Our Data");
         mDataset.addSeries(series);
-        
-        mCurrentSeries = series;
         
         XYSeriesRenderer renderer = new XYSeriesRenderer();
         renderer.setPointStyle(PointStyle.CIRCLE);
         renderer.setFillPoints(true);
+        renderer.setColor(Color.BLUE);
 
         mRenderer.addSeriesRenderer(renderer);
         mRenderer.setZoomEnabled(true, false);
         mRenderer.setZoomButtonsVisible(false);
         mRenderer.setExternalZoomEnabled(true);
+        mRenderer.setLabelsTextSize(20);
+        mRenderer.setLegendTextSize(24);
+        mRenderer.setAxisTitleTextSize(24);
+        mRenderer.setChartTitleTextSize(30); 
         
         mCurrentRenderer = renderer;
 
         if (mChartView != null) {
           mChartView.repaint();
         }
+        
+        mOtherUsers = new ArrayList<String>();
         
         mBackgroundTimer = new Timer();
         
@@ -134,7 +147,6 @@ public class ActivityTrackerActivity extends Activity {
       super.onRestoreInstanceState(savedState);
       mDataset = (XYMultipleSeriesDataset) savedState.getSerializable("dataset");
       mRenderer = (XYMultipleSeriesRenderer) savedState.getSerializable("renderer");
-      mCurrentSeries = (XYSeries) savedState.getSerializable("current_series");
       mCurrentRenderer = (XYSeriesRenderer) savedState.getSerializable("current_renderer");
       mDateFormat = savedState.getString("date_format");
     }
@@ -144,7 +156,6 @@ public class ActivityTrackerActivity extends Activity {
       super.onSaveInstanceState(outState);
       outState.putSerializable("dataset", mDataset);
       outState.putSerializable("renderer", mRenderer);
-      outState.putSerializable("current_series", mCurrentSeries);
       outState.putSerializable("current_renderer", mCurrentRenderer);
       outState.putString("date_format", mDateFormat);
     }
@@ -169,10 +180,6 @@ public class ActivityTrackerActivity extends Activity {
           } else {
             mChartView.repaint();
           }
-    	
-    	
-    	Toast.makeText(ActivityTrackerActivity.this, "Resumed",
-				Toast.LENGTH_SHORT).show();
     }
     
     
@@ -213,10 +220,6 @@ public class ActivityTrackerActivity extends Activity {
 	    return false;
 	}
 	
-	/* button handler */
-	public void onClickStartService(View v) {
-		startService();
-	}
 	
 	private void startService()
 	{
@@ -248,12 +251,64 @@ public class ActivityTrackerActivity extends Activity {
 			stopService(new Intent(this, ActivityTrackerService.class));
 		}
 	}
+	
 	/* button handler */
 	public void onClickCalibrate(View v) {
 		/* calibrate the accelerometer for this device */
 		calibrateAccelerometer();
 	}
 
+	public void onClickAddUser(View v)
+	{
+		/* Set an EditText view to get user input */
+		final EditText input = new EditText(this);
+		
+		/* add a user to the list of tracked users */
+		new AlertDialog.Builder(this)
+		    .setTitle("Add User ID")
+		    .setMessage("Input the User ID of the user you wish to track.")
+		    .setView(input)
+		    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+		        public void onClick(DialogInterface dialog, int whichButton) {
+		            Editable value = input.getText();
+		            TextView others = (TextView)findViewById(R.id.text_Others);
+		            mOtherUsers.add(value.toString());
+		            String newtext = "";
+		            for(String s : mOtherUsers)
+		            {
+		            	newtext += s + ", ";
+		            }
+		            others.setText(newtext.substring(0, newtext.length() - 2));
+		            
+		            /* save the new user to the settings file */
+		            saveSettings();
+		        }
+		    })
+		    .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+		        public void onClick(DialogInterface dialog, int whichButton) {
+		            // Do nothing.
+		        }
+		    })
+		    .show();
+		
+	}
+	
+	public void onClickClearUsers(View v)
+	{
+		//TODO: Thread safe clear
+		mOtherUsers.clear();
+		
+		/* save the setting of an empty string before setting to 'None' in textbox */
+	    ((TextView)findViewById(R.id.text_Others)).setText("");
+	    saveSettings();
+	    ((TextView)findViewById(R.id.text_Others)).setText("None");
+	    
+	    /* remove all datasets but the main one */
+	    for(int i = 1; i < mDataset.getSeriesCount(); i++)
+	    {
+	    	mDataset.removeSeries(i);
+	    }
+	}
 	
 	private ProgressDialog progDiag;
 	
@@ -343,9 +398,7 @@ public class ActivityTrackerActivity extends Activity {
 		boolean gpsenabled = ((CheckBox)findViewById(R.id.chkbox_gpsscan)).isChecked();
 		boolean accelenabled = ((CheckBox)findViewById(R.id.chkbox_accel)).isChecked();
 		boolean gyroenabled = ((CheckBox)findViewById(R.id.chkbox_gyro)).isChecked();
-		
-		/* get the text from the textbox, covert it to a positive int representing push interval */
-		int pushinterval = Math.abs(Integer.parseInt(((EditText)findViewById(R.id.txt_pushInterval)).getText().toString()));
+		String otherUsers = ((TextView)findViewById(R.id.text_Others)).getText().toString();
 		
 		/* setup the new settings */
 	    SharedPreferences settings = getSharedPreferences(ActivityTrackerService.PREFS_NAME, 0);
@@ -356,10 +409,10 @@ public class ActivityTrackerActivity extends Activity {
     	editor.putBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, gpsenabled);
     	editor.putBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, accelenabled);
     	editor.putBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, gyroenabled);
-    	editor.putInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, pushinterval);
     	
     	/* save the latest calibration value */
 	    editor.putFloat(ActivityTrackerService.SETTINGS_CALIBRATE_KEY, calibrate_value);
+	    editor.putString(ActivityTrackerService.SETTINGS_TRACKED_USERS_KEY, otherUsers);
 	    
 	    /* commit changes to settings */
 	    editor.commit();
@@ -375,9 +428,18 @@ public class ActivityTrackerActivity extends Activity {
 		boolean gpsenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_GPS_ENABLE_KEY, true);
 		boolean accelenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_ACCEL_ENABLE_KEY, true);
 		boolean gyroenabled = settings.getBoolean(ActivityTrackerService.SETTINGS_GYRO_ENABLE_KEY, true);
-		int pushinterval = settings.getInt(ActivityTrackerService.SETTINGS_PUSH_INTERVAL_KEY, 30);
-		
+		String trackedUsers = settings.getString(ActivityTrackerService.SETTINGS_TRACKED_USERS_KEY, "");
 
+		String[] parsed = trackedUsers.split(", ");
+		for( String user : parsed)
+		{
+			if(user.length() > 0)
+				mOtherUsers.add(user);
+		}
+		if(trackedUsers.length() == 0)
+			trackedUsers = "None";
+		
+		
 		/* set these settings to default values if they are not present */
 	    SharedPreferences.Editor editor = settings.edit();
 	    
@@ -391,7 +453,7 @@ public class ActivityTrackerActivity extends Activity {
 		mUserId = settings.getString(ActivityTrackerService.SETTINGS_USER_ID_KEY, "");
 		if( mUserId.length() == 0 )
 		{
-			String uuid = UUID.randomUUID().toString().substring(24);
+			String uuid = UUID.randomUUID().toString().substring(0, 5);
 			System.out.println("uuid = " + uuid);
 			mUserId = uuid;
 			editor.putString(ActivityTrackerService.SETTINGS_USER_ID_KEY, mUserId);
@@ -407,7 +469,8 @@ public class ActivityTrackerActivity extends Activity {
 		((CheckBox)findViewById(R.id.chkbox_gyro)).setChecked(gyroenabled);
 		
 		/* update textboxes */
-		((EditText)findViewById(R.id.txt_pushInterval)).setText(String.valueOf(pushinterval));
+		((TextView)findViewById(R.id.text_UID)).setText(mUserId);
+		((TextView)findViewById(R.id.text_Others)).setText(trackedUsers);
 	}
 	
 	  /**
@@ -505,69 +568,104 @@ public class ActivityTrackerActivity extends Activity {
               	/* run accelerometer and gyro on own threads: these take awhile */
               	Log.d(ActivityTrackerService.TAG, "Starting HTTP Posts.");
               	
-              	new HttpGetTask().execute(1000);
+              	new HttpGetTask().execute(360);
               }
            });
          }
 	}
 	
 	/* create an async task to handle queuing of HTTP GETs on separate threads */
-	private class HttpGetTask extends AsyncTask<Integer, Integer, ArrayList<DataPoint>> {
-		protected ArrayList<DataPoint> doInBackground(Integer... limit) {
+	private class HttpGetTask extends AsyncTask<Integer, Integer, ArrayList<ArrayList<DataPoint>>> {
+		protected ArrayList<ArrayList<DataPoint>> doInBackground(Integer... limit) {
 			int count = limit.length;
 			
 			if(count == 0)
-				return new ArrayList<DataPoint>();
+				return new ArrayList<ArrayList<DataPoint>>();
 
 			return doHttpGetAccelData(limit[0]);
 		}
 		 
-		protected void onPostExecute(ArrayList<DataPoint> result) 
+		protected void onPostExecute(ArrayList<ArrayList<DataPoint>> result) 
 		{
 			double x;
 			double y;
-
+	
+			double minX = -1;
 			double maxX = 0;
 			double minY = -1;
 			double maxY = 0;
 	        
-			/* only redraw if we have results */
-			if( result.size() > 0 )
+			/* get the amount of data series that we are currently displaying */
+			int seriescount = mDataset.getSeriesCount();
+			
+			for(int i = 0; i < result.size(); i++)
 			{
-				mCurrentSeries.clear();
+				ArrayList<DataPoint> list = result.get(i);
 				
-				for(DataPoint val : result)
+				/* only redraw if we have results */
+				if( list.size() > 0 )
 				{
-					x = val.getX();
+					XYSeries currentSeries;
 					
-					/* keep track of max x for setting axis */
-					if (x > maxX)
-						maxX = x;
-					
-					y = val.getY();
-					
-					/* keep track of max and min y for setting axis */
-					if( minY < 0)
+					/* if there are less series being graphed then we have, create more */
+					if( seriescount <= i )
 					{
-						minY = y;
-						maxY = y;
+						currentSeries = new XYSeries("Data " + (i+1));
+						mDataset.addSeries(currentSeries);
+						
+				        XYSeriesRenderer renderer = new XYSeriesRenderer();
+				        renderer.setPointStyle(SERIES_STYLES[i%4]);
+				        renderer.setColor(SERIES_COLORS[i%4]);
+				        renderer.setFillPoints(true);
+
+				        mRenderer.addSeriesRenderer(renderer);
 					}
-					else if (y < minY)
-						minY = y;
-					else if (y > maxY)
-						maxY = y;
+					else
+					{
+						currentSeries = mDataset.getSeriesAt(i);
+						currentSeries.clear();
+					}
 					
-			        mCurrentSeries.add(x, y);
+					for(DataPoint val : list)
+					{
+						x = val.getX();
+						
+						/* keep track of min and max x for setting axis */
+						if( minX < 0)
+						{
+							minX = x;
+							maxX = x;
+						}
+						else if (x < minX)
+							minX = x;
+						else if (x > maxX)
+							maxX = x;
+						
+						y = val.getY();
+						
+						/* keep track of max and min y for setting axis */
+						if( minY < 0)
+						{
+							minY = y;
+							maxY = y;
+						}
+						else if (y < minY)
+							minY = y;
+						else if (y > maxY)
+							maxY = y;
+						
+						currentSeries.add(x, y);
+					}
 				}
-	
-				/* set x axis to only display past hour of data */
-				setChartAxes(maxX - HOUR, maxX, minY - 1, maxY + 1, 5);
-		        
-		        if (mChartView != null) {
-		            mChartView.repaint();
-		        }
-	        
 			}
+
+			/* set x axis to only display past hour of data at most*/
+			setChartAxes(Math.max(maxX - HOUR, minX), maxX, minY - 1, maxY + 1, 5);
+	        
+	        if (mChartView != null) {
+	            mChartView.repaint();
+	        }
+        
 		}
 	}
 	
@@ -576,15 +674,31 @@ public class ActivityTrackerActivity extends Activity {
 	 * Perform the HTTP Get routine and return 
 	 * @return
 	 */
-	private ArrayList<DataPoint> doHttpGetAccelData(int limit) {			
+	private ArrayList<ArrayList<DataPoint>> doHttpGetAccelData(int limit) 
+	{			
+		ArrayList<ArrayList<DataPoint>> retlist = new ArrayList<ArrayList<DataPoint>>();
+		/* first, do the get for our user id */
+		retlist.add(getData(mUserId, limit));
+		for(String user : mOtherUsers )
+		{
+			/* then, do the get for other user IDs */
+			retlist.add(getData(user, limit));
+		}
+		
+		return retlist;
+	}
+	
+	private ArrayList<DataPoint> getData(String userid, int limit)
+	{
 		ArrayList<DataPoint> fetchedData = new ArrayList<DataPoint>();
 		
-		Log.i(ActivityTrackerService.TAG, "Trying to get accel data");
+		Log.i(ActivityTrackerService.TAG, "Trying to get accel data for " + userid);
 		
 		/* get all queries in the past day */
-		long sincetime = ((new Date()).getTime() - DAY);
+		//TODO: get 300 points, regardless of how long ago
+		long sincetime = ((new Date()).getTime() - HOUR*6);
 		String query = "user=" + ActivityTrackerService.UPLOAD_UID + "&channel=Activity_Data_" + 
-			mUserId + "&limit=" + limit + "&since=" + sincetime;
+			userid + "&limit=" + limit + "&since=" + sincetime;
 		
 		HttpGet httpget;
 		try
@@ -614,7 +728,6 @@ public class ActivityTrackerActivity extends Activity {
 	            /* parse each line of response for timestamp:value tuples */
 	            while ((line = in.readLine()) != null) {
 	            	parsed = line.split(":");
-	            	Log.d(ActivityTrackerService.TAG, "Time: " + parsed[0] + "    Value: " + parsed[1]);
 	            	fetchedData.add(new DataPoint(Long.parseLong(parsed[0]), Double.parseDouble(parsed[1])));
 	            }
 	            in.close();
