@@ -50,7 +50,6 @@ public class WiFiScanReceiver extends BroadcastReceiver implements ActivitySenso
 	 * @param serv Service to link to this receiver
 	 */
 	public WiFiScanReceiver(ActivityTrackerService serv) {
-		Log.i(ActivityTrackerService.TAG, "Tracking wifi.");
 		parentService = serv;
 		mWifiManager = serv.wifi;
 		

@@ -23,7 +23,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
-import android.widget.Toast;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -81,8 +80,8 @@ public class ActivityTrackerService extends Service {
 	}
 	
 	@Override
-	public void onCreate() {
-		Toast.makeText(this, "Created service", Toast.LENGTH_LONG).show();
+	public void onCreate() { 
+		Log.i(TAG, "Started Activity Tracker Service.");
 	}
 	
 	@Override
@@ -102,7 +101,6 @@ public class ActivityTrackerService extends Service {
 		mBackgroundTimer = null;
 		
 		Log.i(TAG, "Stopped Activity Tracker Service.");
-		Toast.makeText(this, "Destroyed service", Toast.LENGTH_LONG).show();
 	}
 	
 	@Override

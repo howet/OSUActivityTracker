@@ -6,7 +6,9 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -44,7 +46,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.text.Editable;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -70,7 +71,7 @@ public class ActivityTrackerActivity extends Activity {
 	private static final PointStyle[] SERIES_STYLES = { PointStyle.CIRCLE, PointStyle.TRIANGLE, PointStyle.SQUARE, PointStyle.DIAMOND };
 	
 	private String mUserId;
-	private ArrayList<String> mOtherUsers;
+	private List<String> mOtherUsers;
 	
 	private GraphicalView mChartView;
 	
@@ -109,7 +110,7 @@ public class ActivityTrackerActivity extends Activity {
         setChartSettings("Activity Data", "Time", "Activity Level", new Date().getTime() - (7 * DAY), 
         		new Date().getTime() - (7 * DAY), -5, 30, Color.LTGRAY, Color.LTGRAY);
 
-        XYSeries series = new XYSeries("Our Data");
+        XYSeries series = new XYSeries("My Data");
         mDataset.addSeries(series);
         
         XYSeriesRenderer renderer = new XYSeriesRenderer();
@@ -132,11 +133,7 @@ public class ActivityTrackerActivity extends Activity {
           mChartView.repaint();
         }
         
-        mOtherUsers = new ArrayList<String>();
-        
-        mBackgroundTimer = new Timer();
-        
-        mBackgroundTimer.scheduleAtFixedRate( new HttpGetTimerTask(), 0, 60*1000);
+        mOtherUsers = Collections.synchronizedList(new ArrayList<String>());
         
     	/* update the ui based on saved setting on start */
         updateSettings();
@@ -160,9 +157,20 @@ public class ActivityTrackerActivity extends Activity {
       outState.putString("date_format", mDateFormat);
     }
     
+	
+	@Override
+	public void onPause() {
+		super.onPause();
+		
+		/* stop getting HTTP data on pause */
+		mBackgroundTimer.cancel();
+		mBackgroundTimer = null;
+	}
+	
+    
     @Override
     public void onResume() {
-    	super.onRestart();
+    	super.onResume();
     	
     	/* create chartview */
         if (mChartView == null) {
@@ -180,6 +188,13 @@ public class ActivityTrackerActivity extends Activity {
           } else {
             mChartView.repaint();
           }
+        
+        if(mBackgroundTimer == null)
+        {
+	        mBackgroundTimer = new Timer();
+	        
+	        mBackgroundTimer.scheduleAtFixedRate( new HttpGetTimerTask(), 0, 60*1000);
+        }
     }
     
     
@@ -189,15 +204,9 @@ public class ActivityTrackerActivity extends Activity {
     
 	private ServiceConnection mConnection = new ServiceConnection() {
 
-		public void onServiceConnected(ComponentName className, IBinder binder) {
-			Toast.makeText(ActivityTrackerActivity.this, "Connected to service",
-					Toast.LENGTH_SHORT).show();
-		}
+		public void onServiceConnected(ComponentName className, IBinder binder) {}
 
-		public void onServiceDisconnected(ComponentName className) {
-			Toast.makeText(ActivityTrackerActivity.this, "Disconnected from service",
-					Toast.LENGTH_SHORT).show();
-		}
+		public void onServiceDisconnected(ComponentName className) {}
 	};
 	
 	private void doBindService() {
@@ -252,14 +261,20 @@ public class ActivityTrackerActivity extends Activity {
 		}
 	}
 	
-	/* button handler */
-	public void onClickCalibrate(View v) {
-		/* calibrate the accelerometer for this device */
-		calibrateAccelerometer();
-	}
-
+	
 	public void onClickAddUser(View v)
 	{
+		if( mOtherUsers.size() >= 3 )
+		{
+			Toast.makeText
+			(
+				this, 
+				"Sorry, cannot track > 3 users.  Clear tracked users first before adding more.", 
+				Toast.LENGTH_LONG
+			).show();
+			return;
+		}
+		
 		/* Set an EditText view to get user input */
 		final EditText input = new EditText(this);
 		
@@ -270,9 +285,13 @@ public class ActivityTrackerActivity extends Activity {
 		    .setView(input)
 		    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
 		        public void onClick(DialogInterface dialog, int whichButton) {
-		            Editable value = input.getText();
+		            String value = input.getText().toString().trim();
+		            
+		            if( value.length() == 0)
+		            	return; /* user entered no string */
+		            	
 		            TextView others = (TextView)findViewById(R.id.text_Others);
-		            mOtherUsers.add(value.toString());
+		            mOtherUsers.add(value);
 		            String newtext = "";
 		            for(String s : mOtherUsers)
 		            {
@@ -295,7 +314,6 @@ public class ActivityTrackerActivity extends Activity {
 	
 	public void onClickClearUsers(View v)
 	{
-		//TODO: Thread safe clear
 		mOtherUsers.clear();
 		
 		/* save the setting of an empty string before setting to 'None' in textbox */
@@ -324,6 +342,12 @@ public class ActivityTrackerActivity extends Activity {
         }
     }
 	
+	/* button handler */
+	public void onClickCalibrate(View v) {
+		/* calibrate the accelerometer for this device */
+		calibrateAccelerometer();
+	}
+    
 	public void calibrateAccelerometer()
 	{
 		/* start the service if it has not yet started */
@@ -367,7 +391,7 @@ public class ActivityTrackerActivity extends Activity {
 				Thread.sleep(5000);
 		   } catch (InterruptedException e)
 		   {
-				//Do nothing
+				/* Do nothing */
 		   }
      	   
 		   unregisterReceiver(dataUpdateRcvr);
@@ -380,10 +404,42 @@ public class ActivityTrackerActivity extends Activity {
 		   saveSettings();
         }
     }
+	
+	private class DataUpdateReceiver extends BroadcastReceiver {
+	    ArrayList<Double> vals = new ArrayList<Double>();
+	    
+	    public DataUpdateReceiver()
+	    {
+	    	vals.clear();
+	    }
+	    
+		@Override
+		public void onReceive(Context ctx, Intent intent) {
+			if (intent.getAction().equals("PHONE_ACCELEROMETER_VALUE")) {
+				Bundle data = intent.getExtras();
+				vals.add(data.getDouble("val"));
+			}
+		}
+		
+		public double getAvg()
+		{
+			/* if we got no other values, 10 will be average */
+			double avg = 10;
+			int size = vals.size();
+			for(double val : vals)
+			{
+				avg += val;
+			}
+			
+			return( avg / ( size + 1 ));
+		}
+	}
 
 	
 	public void onClickCommitSettings(View v) {
 		saveSettings();
+		   
+		Toast.makeText(ActivityTrackerActivity.this, "Settings Saved", Toast.LENGTH_SHORT).show();
 	}
 	
 	private void saveSettings()
@@ -525,35 +581,7 @@ public class ActivityTrackerActivity extends Activity {
 		  mRenderer.setYLabelsAlign(Align.RIGHT);
 	  }
 	
-	  private class DataUpdateReceiver extends BroadcastReceiver {
-		    ArrayList<Double> vals = new ArrayList<Double>();
-		    
-		    public DataUpdateReceiver()
-		    {
-		    	vals.clear();
-		    }
-		    
-			@Override
-			public void onReceive(Context ctx, Intent intent) {
-				if (intent.getAction().equals("PHONE_ACCELEROMETER_VALUE")) {
-					Bundle data = intent.getExtras();
-					vals.add(data.getDouble("val"));
-				}
-			}
-			
-			public double getAvg()
-			{
-				/* if we got no other values, 10 will be average */
-				double avg = 10;
-				int size = vals.size();
-				for(double val : vals)
-				{
-					avg += val;
-				}
-				
-				return( avg / ( size + 1 ));
-			}
-		}
+
 	  
 	/* 
 	 * HTTP related things 
@@ -565,9 +593,6 @@ public class ActivityTrackerActivity extends Activity {
         public void run() {
            mHandler.post(new Runnable() {
               public void run() {
-              	/* run accelerometer and gyro on own threads: these take awhile */
-              	Log.d(ActivityTrackerService.TAG, "Starting HTTP Posts.");
-              	
               	new HttpGetTask().execute(360);
               }
            });
@@ -659,8 +684,8 @@ public class ActivityTrackerActivity extends Activity {
 				}
 			}
 
-			/* set x axis to only display past hour of data at most*/
-			setChartAxes(Math.max(maxX - HOUR, minX), maxX, minY - 1, maxY + 1, 5);
+			/* set x axis to only display past half hour of data at most*/
+			setChartAxes(Math.max(maxX - (HOUR / 2), minX), maxX, minY - 1, maxY + 1, 5);
 	        
 	        if (mChartView != null) {
 	            mChartView.repaint();
@@ -690,54 +715,75 @@ public class ActivityTrackerActivity extends Activity {
 	
 	private ArrayList<DataPoint> getData(String userid, int limit)
 	{
+		int datacount = 0;
+		int numhours = 1;
 		ArrayList<DataPoint> fetchedData = new ArrayList<DataPoint>();
 		
 		Log.i(ActivityTrackerService.TAG, "Trying to get accel data for " + userid);
 		
-		/* get all queries in the past day */
-		//TODO: get 300 points, regardless of how long ago
-		long sincetime = ((new Date()).getTime() - HOUR*6);
-		String query = "user=" + ActivityTrackerService.UPLOAD_UID + "&channel=Activity_Data_" + 
-			userid + "&limit=" + limit + "&since=" + sincetime;
-		
-		HttpGet httpget;
-		try
+		/* get latest 300 points */
+		while(datacount < 300)
 		{
-			httpget = new HttpGet(new URI("http", ActivityTrackerService.DOWNLOAD_HOST, ActivityTrackerService.DOWNLOAD_PATH, query, null));
+			/* reset datacount for this query and expand the sincetime */
+			datacount = 0;
+			numhours = numhours*2;
 			
-
-		} catch (URISyntaxException e1)
-		{
-			return fetchedData;
-		}
-
-		
-		try {
-	
-			HttpClient client = HttpClientFactory.getThreadSafeClient();
-			HttpResponse r = client.execute(httpget);
-			
-			Log.d(ActivityTrackerService.TAG, "Http response: " + r.getStatusLine().toString());
-			
-			if( r.getStatusLine().toString().contains("200 OK"))
+			/* if we are querying more than 8 hours in the past, just return with what we have */
+			if( numhours > 8 )
 			{
-				BufferedReader in = new BufferedReader(new InputStreamReader(r.getEntity().getContent()));
-	            String line = "";
-	            String[] parsed;
-	            
-	            /* parse each line of response for timestamp:value tuples */
-	            while ((line = in.readLine()) != null) {
-	            	parsed = line.split(":");
-	            	fetchedData.add(new DataPoint(Long.parseLong(parsed[0]), Double.parseDouble(parsed[1])));
-	            }
-	            in.close();
+				break;
 			}
-		}
-		catch (IOException e) 
-		{
-			Log.e(ActivityTrackerService.TAG, "Exception Occurred on HTTP post: " + e.toString());
-		}
+			else
+			{
+				fetchedData.clear();
+			}
+			
+			long sincetime = ((new Date()).getTime() - HOUR*numhours);
+			
+			String query = "user=" + ActivityTrackerService.UPLOAD_UID + "&channel=Activity_Data_" + 
+				userid + "&limit=" + limit + "&since=" + sincetime;
+			
+			HttpGet httpget;
+			try
+			{
+				httpget = new HttpGet(new URI("http", ActivityTrackerService.DOWNLOAD_HOST, ActivityTrackerService.DOWNLOAD_PATH, query, null));
+				
+	
+			} catch (URISyntaxException e1)
+			{
+				return fetchedData;
+			}
+	
+			
+			try {
 		
+				HttpClient client = HttpClientFactory.getThreadSafeClient();
+				HttpResponse r = client.execute(httpget);
+				
+				if( r.getStatusLine().toString().contains("200 OK"))
+				{
+					BufferedReader in = new BufferedReader(new InputStreamReader(r.getEntity().getContent()));
+		            String line = "";
+		            String[] parsed;
+		            
+		            /* parse each line of response for timestamp:value tuples */
+		            while ((line = in.readLine()) != null) {
+		            	parsed = line.split(":");
+		            	fetchedData.add(new DataPoint(Long.parseLong(parsed[0]), Double.parseDouble(parsed[1])));
+		            	
+		            	/* we got a datapoint, increment count */
+		            	datacount++;
+		            }
+		            in.close();
+				}
+			}
+			catch (IOException e) 
+			{
+				Log.e(ActivityTrackerService.TAG, "Exception Occurred on HTTP post: " + e.toString());
+			}
+		} /* loop exits when query has at least 300 points */
+		
+		Log.i(ActivityTrackerService.TAG, "Accel data sucessfully retrieved for " + userid);
 		return fetchedData;
 	}
 }
