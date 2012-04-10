@@ -22,6 +22,8 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.os.PowerManager.WakeLock;
 import android.util.Log;
 
 import org.apache.http.HttpResponse;
@@ -68,6 +70,8 @@ public class ActivityTrackerService extends Service {
 	private GpsReceiver mGpsRcvr = null;
 	private GyroReceiver mGyroRcvr = null;
 	
+	private WakeLock mWakeLock;
+	
 	private float mCalibrationLevel;
 	
 	private Timer mBackgroundTimer = null;
@@ -99,6 +103,8 @@ public class ActivityTrackerService extends Service {
 		
 		mBackgroundTimer.cancel();
 		mBackgroundTimer = null;
+		
+		mWakeLock.release();
 		
 		Log.i(TAG, "Stopped Activity Tracker Service.");
 	}
@@ -156,6 +162,11 @@ public class ActivityTrackerService extends Service {
         mBackgroundTimer = new Timer();
         
         mBackgroundTimer.scheduleAtFixedRate( new HttpPostTimerTask(), POST_PERIOD*1000, POST_PERIOD*1000);
+        
+        /* keep the CPU running while this service is active */
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
+        mWakeLock.acquire();
 	}
 	
 	private class HttpPostTimerTask extends TimerTask {

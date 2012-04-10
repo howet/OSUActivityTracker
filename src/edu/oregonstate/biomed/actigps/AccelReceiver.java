@@ -88,12 +88,14 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 			
 			datastr = buildDataString(data);
 //		}
-
+		
+		Log.d(ActivityTrackerService.TAG, "Built: " + datastr);
 		/* try to post data that failed to post before */
 		if(prevData.size() > 0)
 		{
 			for(String line : prevData)
 			{
+				Log.d(ActivityTrackerService.TAG, "Added: " + line);
 				datastr += line;
 			}
 		}
@@ -105,7 +107,7 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	public void clearData()
 	{
 		prevData.clear();
-		
+		Log.d(ActivityTrackerService.TAG, "Clearing data");
 //		dataPosting = false;
 	}
 
@@ -215,6 +217,7 @@ public class AccelReceiver implements SensorEventListener, ActivitySensor
 	{
 		/* save the previously formatted data */
 		prevData.add(mLatestAvg);
+		Log.d(ActivityTrackerService.TAG, "Saving: " + mLatestAvg);
 	}
 
 }
