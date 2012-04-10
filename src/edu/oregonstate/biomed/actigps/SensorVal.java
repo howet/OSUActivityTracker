@@ -1,28 +1,19 @@
 package edu.oregonstate.biomed.actigps;
 
-import java.util.Date;
-
 import android.hardware.SensorEvent;
 
+/** 
+ * Used for storing raw sensor values from accelerometer or gyroscope
+ */
 public class SensorVal
 {
 	private float[] vals;
 	private long time;
-	private long timeoffset = 0;
-	private long timeoffset_start = 0;
 	
 	public SensorVal(SensorEvent e)
 	{
 		vals = e.values.clone();
-		
-		if (timeoffset == 0) {
-			timeoffset = (new Date()).getTime();
-			timeoffset_start = e.timestamp;
-		}
-		
-		/* build the timestamp using the nanotime stamp from the sensor and the
-		   offset from the RTC, keep the result in microseconds */
-		time = timeoffset*1000+(e.timestamp - timeoffset_start)/1000;
+		time = e.timestamp;
 	}
 	
 	public String toString()

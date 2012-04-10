@@ -243,6 +243,7 @@ public class ActivityTrackerActivity extends Activity {
 	/* button handler */
 	public void onClickStopService(View v) {
 		stopService();
+		Toast.makeText(this, "Background Service Stopped.", Toast.LENGTH_SHORT).show();
 	}
 	
 	private void stopService()
