@@ -602,13 +602,8 @@ public class ActivityTrackerActivity extends Activity {
 	
 	/* create an async task to handle queuing of HTTP GETs on separate threads */
 	private class HttpGetTask extends AsyncTask<Integer, Integer, ArrayList<ArrayList<DataPoint>>> {
-		protected ArrayList<ArrayList<DataPoint>> doInBackground(Integer... limit) {
-			int count = limit.length;
-			
-			if(count == 0)
-				return new ArrayList<ArrayList<DataPoint>>();
-
-			return doHttpGetAccelData(limit[0]);
+		protected ArrayList<ArrayList<DataPoint>> doInBackground(Integer... params) {
+			return doHttpGetAccelData();
 		}
 		 
 		protected void onPostExecute(ArrayList<ArrayList<DataPoint>> result) 
@@ -700,21 +695,21 @@ public class ActivityTrackerActivity extends Activity {
 	 * Perform the HTTP Get routine and return 
 	 * @return
 	 */
-	private ArrayList<ArrayList<DataPoint>> doHttpGetAccelData(int limit) 
+	private ArrayList<ArrayList<DataPoint>> doHttpGetAccelData() 
 	{			
 		ArrayList<ArrayList<DataPoint>> retlist = new ArrayList<ArrayList<DataPoint>>();
 		/* first, do the get for our user id */
-		retlist.add(getData(mUserId, limit));
+		retlist.add(getData(mUserId));
 		for(String user : mOtherUsers )
 		{
 			/* then, do the get for other user IDs */
-			retlist.add(getData(user, limit));
+			retlist.add(getData(user));
 		}
 		
 		return retlist;
 	}
 	
-	private ArrayList<DataPoint> getData(String userid, int limit)
+	private ArrayList<DataPoint> getData(String userid)
 	{
 		int datacount = 0;
 		int numhours = 1;
@@ -742,7 +737,7 @@ public class ActivityTrackerActivity extends Activity {
 			long sincetime = ((new Date()).getTime() - HOUR*numhours);
 			
 			String query = "user=" + ActivityTrackerService.UPLOAD_UID + "&channel=Activity_Data_" + 
-				userid + "&limit=" + limit + "&since=" + sincetime;
+				userid + "&limit=1000"+ "&since=" + sincetime;
 			
 			HttpGet httpget;
 			try
