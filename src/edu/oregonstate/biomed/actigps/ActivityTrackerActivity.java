@@ -712,13 +712,13 @@ public class ActivityTrackerActivity extends Activity {
 	private ArrayList<DataPoint> getData(String userid)
 	{
 		int datacount = 0;
-		int numhours = 1;
+		int numhours = 2;
 		ArrayList<DataPoint> fetchedData = new ArrayList<DataPoint>();
 		
 		Log.i(ActivityTrackerService.TAG, "Trying to get accel data for " + userid);
 		
-		/* get latest 300 points */
-		while(datacount < 300)
+		/* get latest 400 points */
+		while(datacount < 400)
 		{
 			/* reset datacount for this query and expand the sincetime */
 			datacount = 0;
